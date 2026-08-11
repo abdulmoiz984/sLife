@@ -1,7 +1,6 @@
 import React from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-//-----
 import StackNavigator from './StackNavigator';
 import { COLORS } from '../globalStyle/Theme';
 import { navigationRef } from './NavigationService';
@@ -12,7 +11,7 @@ const RootStack = () => {
       <StatusBar
         animated={true}
         backgroundColor={COLORS.background}
-        barStyle="dark-content"
+        barStyle="light-content"
       />
       <StackNavigator />
     </NavigationContainer>

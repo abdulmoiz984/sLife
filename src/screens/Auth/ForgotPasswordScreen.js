@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, Keyboard } from 'react-native';
-//-----
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, AppLogo, TextField, AuthBackLink } from '../../components';
+import { Overline } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
 
 const ForgotPasswordScreen = ({ navigation }) => {
@@ -14,24 +14,35 @@ const ForgotPasswordScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaWrapper keyboardAvoid isPadding={false} bgColor={COLORS.background}>
+    <SafeAreaWrapper keyboardAvoid bgColor={COLORS.background}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <AuthBackLink onPress={() => navigation.goBack()} />
 
-        <AppLogo height={40} style={styles.logo} />
+        <View style={styles.logoWrap}>
+          <AppLogo size={72} />
+        </View>
 
+        <Overline textAlign="center">Account recovery</Overline>
         <Typography
           fixed
-          fFamily="sourceSerifBold700"
-          size={24}
-          color={COLORS.primary}
-          mT={28}>
-          Reset password
+          fFamily="spaceGroteskBold700"
+          size={28}
+          color={COLORS.foreground}
+          textAlign="center"
+          mT={8}>
+          Reset password.
         </Typography>
-        <Typography fixed size={15} color={COLORS.mutedForeground} mT={6} LineHeight={20}>
+        <Typography
+          fixed
+          size={14}
+          color={COLORS.body}
+          textAlign="center"
+          mT={12}
+          LineHeight={20}
+          style={styles.sub}>
           Enter your email and we'll send a reset link.
         </Typography>
 
@@ -40,11 +51,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
             label="Email"
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder="you@company.com"
             keyboardType="email-address"
           />
-
-          <Button label="Send reset link" onPress={handleSubmit} mt={24} fontSize={16} />
+          <Button label="Send reset link" onPress={handleSubmit} />
         </View>
       </ScrollView>
     </SafeAreaWrapper>
@@ -57,14 +67,19 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 36,
+    paddingTop: 8,
     paddingBottom: 32,
   },
-  logo: {
+  logoWrap: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  sub: {
+    maxWidth: 320,
     alignSelf: 'center',
-    marginTop: 20,
   },
   form: {
-    marginTop: 24,
+    marginTop: 40,
   },
 });

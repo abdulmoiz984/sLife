@@ -63,6 +63,10 @@
 		<string>SourceSerif4_400Regular_Italic.ttf</string>
 		<string>SourceSerif4_600SemiBold.ttf</string>
 		<string>SourceSerif4_700Bold.ttf</string>
+		<string>SpaceGrotesk_400Regular.ttf</string>
+		<string>SpaceGrotesk_500Medium.ttf</string>
+		<string>SpaceGrotesk_600SemiBold.ttf</string>
+		<string>SpaceGrotesk_700Bold.ttf</string>
 	</array>
 </dict>
 </plist>

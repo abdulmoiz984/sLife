@@ -6,13 +6,11 @@ import {
   StyleSheet,
   View,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import Sizer from '../../helpers/Sizer';
-import { COLORS, RADIUS, getFontStyle } from '../../globalStyle/Theme';
+import { COLORS, getFontStyle } from '../../globalStyle/Theme';
 
-/** Standard primary CTA — matches production onboarding buttons */
-const BUTTON_HEIGHT = 50;
+const BUTTON_HEIGHT = 44;
 
 function Button({
   label = 'Custom Button',
@@ -20,7 +18,8 @@ function Button({
   textStyle = {},
   loader = false,
   disabled = false,
-  upperCase = false,
+  upperCase = true,
+  full = true,
   onPress = () => {},
   icon = null,
   rightIcon = null,
@@ -28,7 +27,7 @@ function Button({
   mb = 0,
   mt = 0,
   iconGap = 8,
-  fontSize = 16,
+  fontSize = 13,
   fFamily = 'interSemiBold600',
   textColor = null,
   loadColor = null,
@@ -38,18 +37,37 @@ function Button({
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const isSecondary = type === 'secondary';
   let backgroundColor = COLORS.primary;
+  let borderColor = COLORS.primary;
+  let borderWidth = 0;
   let textClr = COLORS.primaryForeground;
 
-  if (isSecondary) {
-    backgroundColor = COLORS.white100;
+  if (type === 'secondary') {
+    backgroundColor = 'transparent';
+    borderColor = COLORS.primary;
+    borderWidth = 1;
     textClr = customTextColor || COLORS.primary;
+  } else if (type === 'ghost') {
+    backgroundColor = 'transparent';
+    borderColor = 'transparent';
+    borderWidth = 0;
+    textClr = customTextColor || COLORS.foreground;
+  } else if (type === 'destructive') {
+    backgroundColor = 'transparent';
+    borderColor = COLORS.destructive;
+    borderWidth = 1;
+    textClr = COLORS.destructive;
+  } else if (type === 'outline') {
+    backgroundColor = 'transparent';
+    borderColor = COLORS.border;
+    borderWidth = 1;
+    textClr = customTextColor || COLORS.foreground;
   }
 
   if (disabled) {
-    backgroundColor = COLORS.grey200;
-    textClr = COLORS.mutedForeground;
+    backgroundColor = type === 'primary' ? COLORS.border : 'transparent';
+    textClr = COLORS.mute;
+    borderColor = COLORS.border;
   }
 
   const color = textColor || textClr;
@@ -76,7 +94,7 @@ function Button({
   return (
     <TouchableOpacity
       style={[
-        styles.touchable,
+        full ? styles.touchable : styles.touchableAuto,
         { marginBottom: Sizer.vSize(mb), marginTop: Sizer.vSize(mt) },
       ]}
       activeOpacity={0.88}
@@ -90,10 +108,8 @@ function Button({
       <Animated.View
         style={[
           styles.button,
-          { backgroundColor },
-          isSecondary && styles.secondaryBorder,
-          disabled && styles.disabledShadow,
-          !isSecondary && !disabled && styles.primaryShadow,
+          !full && styles.buttonAuto,
+          { backgroundColor, borderColor, borderWidth },
           outerStyle,
           btnStyle,
           { transform: [{ scale: scaleAnim }] },
@@ -112,6 +128,7 @@ function Button({
                 {
                   color,
                   fontSize,
+                  letterSpacing: 0.52,
                   textTransform: upperCase ? 'uppercase' : 'none',
                 },
                 textStyle,
@@ -131,36 +148,21 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'stretch',
   },
+  touchableAuto: {
+    alignSelf: 'flex-start',
+  },
   button: {
     width: '100%',
     height: BUTTON_HEIGHT,
-    borderRadius: RADIUS.full,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  primaryShadow: {
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.22,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  secondaryBorder: {
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: COLORS.border,
-  },
-  disabledShadow: {
-    ...Platform.select({
-      ios: { shadowOpacity: 0 },
-      android: { elevation: 0 },
-    }),
+  buttonAuto: {
+    width: undefined,
+    minWidth: 96,
+    paddingHorizontal: 20,
   },
   labelRow: {
     flexDirection: 'row',

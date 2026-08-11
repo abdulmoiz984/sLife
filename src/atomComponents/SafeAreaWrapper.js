@@ -1,16 +1,15 @@
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-//----
 import { COLORS, GLOBALSTYLE } from '../globalStyle/Theme';
 
 const SafeAreaWrapper = ({
   children,
   edges,
   contentStyle = {},
-  bgColor = COLORS.mainBg,
+  bgColor = COLORS.background,
   keyboardAvoid = false,
-  isPadding = true,
+  isPadding = false,
 }) => {
   const Wrapper = keyboardAvoid ? KeyboardAvoidingView : React.Fragment;
 

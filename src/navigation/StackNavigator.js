@@ -1,12 +1,23 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-//------
 import {
   LoginScreen,
   SignupScreen,
   ForgotPasswordScreen,
-  HomePlaceholder,
+  SplashScreen,
+  OnboardingScreen,
+  VerifyScreen,
+  ProfileSetupScreen,
+  FiltersScreen,
+  RequestsScreen,
+  ChatScreen,
+  NotificationsScreen,
+  SettingsScreen,
+  SubscriptionScreen,
+  ProfileScreen,
+  ProfileDetailsScreen,
 } from '../screens';
+import TabNavigator from './TabNavigator';
 import { COLORS } from '../globalStyle/Theme';
 
 const Stack = createNativeStackNavigator();
@@ -14,30 +25,37 @@ const Stack = createNativeStackNavigator();
 const stackScreenOptions = {
   headerShown: false,
   animation: 'slide_from_right',
-  navigationBarColor: COLORS.mainBg,
+  navigationBarColor: COLORS.background,
+  contentStyle: { backgroundColor: COLORS.background },
 };
 
 const StackNavigator = () => {
   return (
-    <Stack.Navigator
-      screenOptions={stackScreenOptions}
-      initialRouteName="LoginScreen">
-      <Stack.Screen
-        name="LoginScreen"
-        options={{ animation: 'fade' }}
-        component={LoginScreen}
-      />
+    <Stack.Navigator screenOptions={stackScreenOptions} initialRouteName="SplashScreen">
+      <Stack.Screen name="SplashScreen" options={{ animation: 'fade' }} component={SplashScreen} />
+      <Stack.Screen name="OnboardingScreen" options={{ animation: 'fade' }} component={OnboardingScreen} />
+      <Stack.Screen name="LoginScreen" options={{ animation: 'fade' }} component={LoginScreen} />
       <Stack.Screen name="SignupScreen" component={SignupScreen} />
       <Stack.Screen
         name="ForgotPasswordScreen"
         options={{ animation: 'slide_from_bottom' }}
         component={ForgotPasswordScreen}
       />
+      <Stack.Screen name="VerifyScreen" component={VerifyScreen} />
+      <Stack.Screen name="ProfileSetupScreen" component={ProfileSetupScreen} />
+      <Stack.Screen name="MainTabs" options={{ animation: 'fade' }} component={TabNavigator} />
       <Stack.Screen
-        name="HomePlaceholder"
-        options={{ animation: 'fade' }}
-        component={HomePlaceholder}
+        name="FiltersScreen"
+        options={{ animation: 'slide_from_bottom', presentation: 'transparentModal' }}
+        component={FiltersScreen}
       />
+      <Stack.Screen name="RequestsScreen" component={RequestsScreen} />
+      <Stack.Screen name="ChatScreen" component={ChatScreen} />
+      <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
+      <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+      <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} />
+      <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+      <Stack.Screen name="ProfileDetailsScreen" component={ProfileDetailsScreen} />
     </Stack.Navigator>
   );
 };

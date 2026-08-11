@@ -8,13 +8,15 @@ const InputLabel = ({ title = '', isRequired = false, mT = 0, mB = 8, ...props }
       fixed
       mT={mT}
       mB={mB}
-      size={14}
-      fFamily="interMedium500"
-      color={COLORS.foreground}
+      size={11}
+      fFamily="interSemiBold600"
+      color={COLORS.mute}
+      textTransform="uppercase"
+      style={{ letterSpacing: 0.88 }}
       {...props}>
       {title}
       {isRequired && (
-        <Typography fixed color={COLORS.destructive}>
+        <Typography fixed color={COLORS.destructive} size={11}>
           {' '}
           *
         </Typography>

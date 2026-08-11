@@ -1,15 +1,14 @@
 import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
-//-----
 import { Typography } from '../../atomComponents';
-import { COLORS, RADIUS } from '../../globalStyle/Theme';
+import { COLORS } from '../../globalStyle/Theme';
+import { Icon } from '../slife';
 
 const AuthBackLink = ({ onPress, label = 'Back' }) => {
   return (
     <Pressable onPress={onPress} style={styles.backBtn} hitSlop={8}>
-      <ArrowLeft size={16} color={COLORS.mutedForeground} strokeWidth={1.8} />
-      <Typography fixed size={14} color={COLORS.mutedForeground}>
+      <Icon.ArrowLeft size={16} color={COLORS.mute} />
+      <Typography fixed size={12} color={COLORS.mute} fFamily="interSemiBold600" textTransform="uppercase">
         {label}
       </Typography>
     </Pressable>
@@ -27,6 +26,5 @@ const styles = StyleSheet.create({
     marginLeft: -4,
     paddingHorizontal: 8,
     paddingVertical: 8,
-    borderRadius: RADIUS.md,
   },
 });

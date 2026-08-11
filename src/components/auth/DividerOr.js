@@ -1,15 +1,19 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-//-----
 import { Typography } from '../../atomComponents';
 import { COLORS } from '../../globalStyle/Theme';
 
-const DividerOr = ({ mT = 24, mB = 24 }) => {
+const DividerOr = ({ mT = 24, mB = 24, label = 'Or continue with' }) => {
   return (
     <View style={[styles.row, { marginTop: mT, marginBottom: mB }]}>
       <View style={styles.line} />
-      <Typography fixed size={13} color={COLORS.mutedForeground} style={styles.text}>
-        or
+      <Typography
+        fixed
+        size={11}
+        color={COLORS.mute}
+        textTransform="uppercase"
+        style={styles.text}>
+        {label}
       </Typography>
       <View style={styles.line} />
     </View>
@@ -26,10 +30,10 @@ const styles = StyleSheet.create({
   },
   line: {
     flex: 1,
-    height: StyleSheet.hairlineWidth,
+    height: 1,
     backgroundColor: COLORS.border,
   },
   text: {
-    textTransform: 'lowercase',
+    letterSpacing: 1.76,
   },
 });

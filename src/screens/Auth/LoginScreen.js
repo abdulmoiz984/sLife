@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, Pressable, Keyboard } from 'react-native';
-//-----
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import {
   Button,
@@ -9,6 +8,7 @@ import {
   DividerOr,
   SocialAuthButton,
 } from '../../components';
+import { Icon, Overline } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
 
 const LoginScreen = ({ navigation }) => {
@@ -17,35 +17,46 @@ const LoginScreen = ({ navigation }) => {
 
   const goToApp = () => {
     Keyboard.dismiss();
-    navigation.replace('HomePlaceholder');
+    navigation.replace('MainTabs');
   };
 
   return (
-    <SafeAreaWrapper keyboardAvoid isPadding={false} bgColor={COLORS.background}>
+    <SafeAreaWrapper keyboardAvoid bgColor={COLORS.background}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        <AppLogo height={44} style={styles.logo} />
+        <View style={styles.logoWrap}>
+          <AppLogo size={72} />
+        </View>
 
+        <Overline textAlign="center">Members only</Overline>
         <Typography
           fixed
-          fFamily="sourceSerifBold700"
+          fFamily="spaceGroteskBold700"
           size={28}
-          color={COLORS.primary}
-          mT={28}>
-          Sign in
+          color={COLORS.foreground}
+          textAlign="center"
+          mT={8}>
+          Welcome back.
         </Typography>
-        <Typography fixed size={15} color={COLORS.mutedForeground} mT={6} LineHeight={20}>
-          Welcome back to sLife
+        <Typography
+          fixed
+          size={14}
+          color={COLORS.body}
+          textAlign="center"
+          mT={12}
+          LineHeight={20}
+          style={styles.sub}>
+          Sign in to your private network of verified professionals.
         </Typography>
 
         <View style={styles.form}>
           <TextField
-            label="Email or phone"
+            label="Email"
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder="you@company.com"
             keyboardType="email-address"
           />
           <TextField
@@ -54,46 +65,54 @@ const LoginScreen = ({ navigation }) => {
             onChangeText={setPassword}
             placeholder="••••••••"
             secureTextEntry
-            mT={16}
           />
-
           <Pressable
             onPress={() => navigation.navigate('ForgotPasswordScreen')}
             style={styles.forgotLink}>
-            <Typography fixed size={14} fFamily="interSemiBold600" color={COLORS.primary}>
+            <Typography
+              fixed
+              size={12}
+              fFamily="interSemiBold600"
+              color={COLORS.primary}
+              textTransform="uppercase"
+              style={styles.track}>
               Forgot password?
             </Typography>
           </Pressable>
-
-          <Button label="Sign in" onPress={goToApp} mt={8} fontSize={16} />
+          <Button label="Log in" onPress={goToApp} />
         </View>
 
         <DividerOr />
 
         <SocialAuthButton
           label="Continue with LinkedIn"
-          icon="in"
-          iconColor="#0A66C2"
+          icon={<Icon.LinkedIn />}
           onPress={goToApp}
         />
-        <SocialAuthButton label="Continue with Apple" icon="" onPress={goToApp} />
-        <SocialAuthButton label="Continue with Email" icon="@" onPress={goToApp} />
+        <SocialAuthButton
+          label="Continue with Facebook"
+          icon={<Icon.Facebook />}
+          onPress={goToApp}
+        />
 
         <Typography
           fixed
-          size={14}
-          color={COLORS.mutedForeground}
+          size={13}
+          color={COLORS.body}
           textAlign="center"
-          mT={28}
+          mT={40}
+          mB={8}
           LineHeight={20}>
-          New to sLife?{' '}
+          Don't have an account?{' '}
           <Typography
             fixed
-            size={14}
+            size={12}
             fFamily="interSemiBold600"
             color={COLORS.primary}
+            textTransform="uppercase"
+            style={styles.track}
             onPress={() => navigation.navigate('SignupScreen')}>
-            Join now
+            Sign up
           </Typography>
         </Typography>
       </ScrollView>
@@ -107,18 +126,27 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 24,
     paddingBottom: 32,
   },
-  logo: {
+  logoWrap: {
+    alignItems: 'center',
+    paddingTop: 32,
+    paddingBottom: 32,
+  },
+  sub: {
+    maxWidth: 320,
     alignSelf: 'center',
   },
   form: {
-    marginTop: 28,
+    marginTop: 40,
   },
   forgotLink: {
-    alignSelf: 'flex-start',
-    marginTop: 14,
-    marginBottom: 8,
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 16,
+  },
+  track: {
+    letterSpacing: 0.72,
   },
 });

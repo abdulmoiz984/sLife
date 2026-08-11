@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, Pressable } from 'react-native';
-//-------
 import Sizer from '../../helpers/Sizer';
-import { COLORS, RADIUS, getFontStyle } from '../../globalStyle/Theme';
+import { COLORS, getFontStyle } from '../../globalStyle/Theme';
 import Typography from '../../atomComponents/Typography';
 import InputLabel from './InputLabel';
 
@@ -18,9 +17,10 @@ const TextField = ({
   containerStyle = {},
   inputStyle = {},
   mT = 0,
-  mB = 0,
+  mB = 16,
   error = '',
   isRequired = false,
+  multiline = false,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -28,12 +28,11 @@ const TextField = ({
 
   return (
     <View style={[{ marginTop: Sizer.vSize(mT), marginBottom: Sizer.vSize(mB) }, containerStyle]}>
-      {!!label && (
-        <InputLabel title={label} isRequired={isRequired} mT={0} mB={4} />
-      )}
+      {!!label && <InputLabel title={label} isRequired={isRequired} mT={0} mB={8} />}
       <View
         style={[
           styles.inputWrap,
+          multiline && styles.areaWrap,
           isFocused && styles.inputWrapFocused,
           !!error && styles.inputWrapError,
         ]}>
@@ -46,11 +45,13 @@ const TextField = ({
           }}
           onFocus={() => setIsFocused(true)}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.mutedForeground}
+          placeholderTextColor={COLORS.mute}
           secureTextEntry={hidePassword}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
-          style={[styles.input, inputStyle]}
+          multiline={multiline}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          style={[styles.input, multiline && styles.area, inputStyle]}
           {...props}
         />
         {secureTextEntry && (
@@ -58,7 +59,7 @@ const TextField = ({
             onPress={() => setHidePassword(!hidePassword)}
             hitSlop={8}
             style={styles.toggleBtn}>
-            <Typography fixed size={13} color={COLORS.primary} fFamily="interSemiBold600">
+            <Typography fixed size={12} color={COLORS.primary} fFamily="interSemiBold600" textTransform="uppercase">
               {hidePassword ? 'Show' : 'Hide'}
             </Typography>
           </Pressable>
@@ -80,11 +81,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.input,
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 12,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    borderRadius: 0,
+    paddingHorizontal: 16,
     minHeight: 48,
+  },
+  areaWrap: {
+    alignItems: 'flex-start',
+    minHeight: 112,
+    paddingVertical: 12,
   },
   inputWrapFocused: {
     borderColor: COLORS.primary,
@@ -94,10 +100,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     ...getFontStyle('interRegular400'),
     color: COLORS.foreground,
     paddingVertical: 12,
+  },
+  area: {
+    minHeight: 88,
   },
   toggleBtn: {
     paddingLeft: Sizer.hSize(8),

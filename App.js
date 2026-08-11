@@ -5,7 +5,7 @@ import RootStack from './src/navigation/RootStack';
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
       <SafeAreaProvider>
         <RootStack />
       </SafeAreaProvider>

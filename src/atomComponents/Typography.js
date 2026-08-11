@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { COLORS, getFontStyle } from '../globalStyle/Theme';
 import Sizer from '../helpers/Sizer';
 
@@ -47,7 +47,7 @@ const Typography = ({
     ...(LineHeight
       ? { lineHeight: fixed ? LineHeight : Sizer.hSize(LineHeight) }
       : null),
-    ...style,
+    ...StyleSheet.flatten(style),
   };
 
   return (

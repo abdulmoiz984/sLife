@@ -1,22 +1,12 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-//-----
-import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import Sizer from '../../helpers/Sizer';
+import { COLORS } from '../../globalStyle/Theme';
 
 const RegisterProgressBar = ({ step, total = 3 }) => {
+  const pct = Math.min(100, Math.max(0, (step / total) * 100));
   return (
-    <View style={styles.row}>
-      {Array.from({ length: total }).map((_, index) => {
-        const stepNumber = index + 1;
-        const isActive = stepNumber <= step;
-        return (
-          <View
-            key={stepNumber}
-            style={[styles.segment, isActive ? styles.active : styles.inactive]}
-          />
-        );
-      })}
+    <View style={styles.track}>
+      <View style={[styles.fill, { width: `${pct}%` }]} />
     </View>
   );
 };
@@ -24,20 +14,14 @@ const RegisterProgressBar = ({ step, total = 3 }) => {
 export default RegisterProgressBar;
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: Sizer.hSize(8),
-    marginTop: Sizer.vSize(24),
-  },
-  segment: {
-    flex: 1,
-    height: Sizer.vSize(4),
-    borderRadius: RADIUS.full,
-  },
-  active: {
-    backgroundColor: COLORS.primary,
-  },
-  inactive: {
+  track: {
+    height: 3,
+    width: '100%',
     backgroundColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
   },
 });

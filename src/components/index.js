@@ -21,3 +21,16 @@ export {
   InterestChip,
   ScreenHeader,
 };
+
+export {
+  Icon,
+  Avatar,
+  Chip,
+  Overline,
+  VerifiedBadge,
+  SectionLabel,
+  TopBar,
+  UploadTile,
+  FullProfileView,
+  ShimmerBlock,
+} from './slife';

@@ -2,64 +2,71 @@ import { Dimensions, Platform, StatusBar } from 'react-native';
 import Sizer from '../helpers/Sizer';
 
 const COLORS = {
-  mainBg: '#FDFCFE',
-  background: '#FDFCFE',
-  foreground: '#2A1F35',
-  card: '#FFFFFF',
-  cardForeground: '#2A1F35',
+  mainBg: '#0A0A0A',
+  background: '#0A0A0A',
+  surface: '#141414',
+  elevated: '#1C1C1C',
+  foreground: '#FFFFFF',
+  card: '#141414',
+  cardForeground: '#FFFFFF',
 
-  primary: '#51346D',
-  primary1: '#3D2654',
+  primary: '#F10000',
+  primary1: '#C40000',
   primaryForeground: '#FFFFFF',
-  primarySoft: '#F3EDF7',
+  primarySoft: 'rgba(241, 0, 0, 0.12)',
 
-  accentGold: '#EAC37E',
-  accentGoldForeground: '#3D3220',
+  body: '#B8B8B8',
+  mute: '#6E6E6E',
+  muted: '#141414',
+  mutedForeground: '#B8B8B8',
 
-  secondary: '#F5F4F6',
-  secondaryForeground: '#3D3248',
+  secondary: '#141414',
+  secondaryForeground: '#FFFFFF',
 
-  muted: '#F5F4F6',
-  mutedForeground: '#7A7580',
+  border: '#2A2A2A',
+  input: '#141414',
 
-  border: '#EBE9ED',
-  input: '#F0EEF2',
-
-  destructive: '#E05252',
-  success: '#3D9E6A',
+  destructive: '#E5484D',
+  success: '#3DDC84',
+  verified: '#4A9EFF',
 
   white100: '#FFFFFF',
   black100: '#000000',
-  black700: '#2A1F35',
-  grey100: '#EBE9ED',
-  grey200: '#DEDEDE',
+  black700: '#0A0A0A',
+  grey100: '#2A2A2A',
+  grey200: '#1C1C1C',
 
-  actionSky: '#0284C7',
-  actionEmerald: '#059669',
+  actionSky: '#4A9EFF',
+  actionEmerald: '#3DDC84',
   actionOrange: '#EA580C',
   rose: '#F43F5E',
   violet: '#7C3AED',
-  primaryMuted: 'rgba(81, 52, 109, 0.15)',
+  primaryMuted: 'rgba(241, 0, 0, 0.15)',
+  accentGold: '#EAC37E',
+  accentGoldForeground: '#3D3220',
   accentGoldMuted: 'rgba(234, 195, 126, 0.3)',
-  cardOverlay: 'rgba(255, 255, 255, 0.95)',
+  cardOverlay: 'rgba(10, 10, 10, 0.95)',
 };
 
 const RADIUS = {
-  sm: 8,
-  md: 10,
-  lg: 12,
-  xl: 16,
-  xxl: 20,
+  none: 0,
+  sm: 0,
+  md: 1,
+  lg: 2,
+  xl: 2,
+  xxl: 2,
   full: 999,
 };
 
 const GRADIENTS = {
-  brand: ['#51346D', '#3D2654'],
-  brandShadow: 'rgba(81, 52, 109, 0.2)',
+  splash: ['#1A1A1A', '#000000', '#0A0A0A'],
+  scrim: ['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.4)', '#000000'],
+  cover: ['rgba(0,0,0,0.4)', '#0A0A0A'],
+  paywall: ['rgba(10,10,10,0.7)', 'rgba(10,10,10,0.6)', '#0A0A0A'],
 };
 
 /**
- * Real Inter + Source Serif 4 (src/assets/fonts).
+ * Inter (body) + Space Grotesk (display).
  * iOS uses PostScript names; Android uses the file name (no extension).
  */
 const FONTS = {
@@ -79,30 +86,45 @@ const FONTS = {
     ios: 'Inter-Bold',
     android: 'Inter_700Bold',
   }),
+  spaceGroteskRegular400: Platform.select({
+    ios: 'SpaceGrotesk-Regular',
+    android: 'SpaceGrotesk_400Regular',
+  }),
+  spaceGroteskMedium500: Platform.select({
+    ios: 'SpaceGrotesk-Medium',
+    android: 'SpaceGrotesk_500Medium',
+  }),
+  spaceGroteskSemiBold600: Platform.select({
+    ios: 'SpaceGrotesk-SemiBold',
+    android: 'SpaceGrotesk_600SemiBold',
+  }),
+  spaceGroteskBold700: Platform.select({
+    ios: 'SpaceGrotesk-Bold',
+    android: 'SpaceGrotesk_700Bold',
+  }),
   sourceSerifSemiBold600: Platform.select({
-    ios: 'SourceSerif4-SemiBold',
-    android: 'SourceSerif4_600SemiBold',
+    ios: 'SpaceGrotesk-SemiBold',
+    android: 'SpaceGrotesk_600SemiBold',
   }),
   sourceSerifBold700: Platform.select({
-    ios: 'SourceSerif4-Bold',
-    android: 'SourceSerif4_700Bold',
+    ios: 'SpaceGrotesk-Bold',
+    android: 'SpaceGrotesk_700Bold',
   }),
   sourceSerifItalic: Platform.select({
-    ios: 'SourceSerif4-Italic',
-    android: 'SourceSerif4_400Regular_Italic',
+    ios: 'Inter-Regular',
+    android: 'Inter_400Regular',
   }),
 };
 
 const getFontStyle = (familyKey = 'interRegular400') => {
   const fontFamily = FONTS[familyKey] || FONTS.interRegular400;
-  // Weight is baked into each file — do not also set fontWeight
   return { fontFamily };
 };
 
 const WINDOW = {
   height: Dimensions.get('window').height,
   width: Dimensions.get('window').width,
-  fixPadding: 24,
+  fixPadding: 20,
 };
 
 const GLOBALSTYLE = {
@@ -111,12 +133,19 @@ const GLOBALSTYLE = {
     backgroundColor: COLORS.background,
   },
   paddingHor: {
-    paddingHorizontal: Sizer.hSize(16),
+    paddingHorizontal: Sizer.hSize(20),
   },
   marginHor: {
-    marginHorizontal: Sizer.hSize(18),
+    marginHorizontal: Sizer.hSize(20),
   },
   bgWithOpacity: (opacity = 0.3) => `rgba(0, 0, 0, ${opacity})`,
+  overline: {
+    ...getFontStyle('spaceGroteskSemiBold600'),
+    fontSize: 11,
+    letterSpacing: 0.88,
+    textTransform: 'uppercase',
+    color: COLORS.primary,
+  },
 };
 
 const statusBarHeight =

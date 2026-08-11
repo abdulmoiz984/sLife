@@ -28,6 +28,22 @@
     {
       "path": "src/assets/fonts/SourceSerif4_700Bold.ttf",
       "sha1": "bd4f1c2681cc14e9309db4d2367d3487c50642ab"
+    },
+    {
+      "path": "src/assets/fonts/SpaceGrotesk_400Regular.ttf",
+      "sha1": "23aaf86d93b2c94ebf6fd588f0bc5f62194889f6"
+    },
+    {
+      "path": "src/assets/fonts/SpaceGrotesk_500Medium.ttf",
+      "sha1": "7d2fe2b9e0c9e76ab5bebf7cd766acd1d5c4dcbb"
+    },
+    {
+      "path": "src/assets/fonts/SpaceGrotesk_600SemiBold.ttf",
+      "sha1": "e99da7dd55ac9ed7675a533c5a98cd7797613a67"
+    },
+    {
+      "path": "src/assets/fonts/SpaceGrotesk_700Bold.ttf",
+      "sha1": "14f3d7d974d0232f0fba31566783b2c262b4d2a2"
     }
   ]
 }
