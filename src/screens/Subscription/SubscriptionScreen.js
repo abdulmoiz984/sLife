@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '../../atomComponents';
 import { Button, AppLogo } from '../../components';
 import { Icon, Overline, ShimmerBlock } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { paywallBg } from '../../assets/images';
 
 const PERKS = [
@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(20,20,20,0.8)',
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.lg,
     padding: 16,
     overflow: 'hidden',
     position: 'relative',
@@ -226,6 +227,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -251,6 +253,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.elevated,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
     padding: 20,
   },
   priceRow: {
@@ -261,6 +264,7 @@ const styles = StyleSheet.create({
   popular: {
     borderWidth: 1,
     borderColor: COLORS.primary,
+    borderRadius: RADIUS.full,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },

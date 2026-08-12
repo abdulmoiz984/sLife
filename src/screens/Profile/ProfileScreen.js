@@ -11,7 +11,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
 import { Avatar, Icon, SectionLabel, VerifiedBadge } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { getPersonById } from '../../constants/mockData';
 import { onboardBoardroom } from '../../assets/images';
 
@@ -189,6 +189,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
     zIndex: 2,
     ...Platform.select({
       android: { elevation: 4 },
@@ -233,6 +234,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -250,6 +252,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.lg,
     minHeight: 180,
     paddingVertical: 36,
     paddingHorizontal: 24,

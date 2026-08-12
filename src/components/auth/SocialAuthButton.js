@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Flex, Typography } from '../../atomComponents';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 
 const SocialAuthButton = ({ label, icon, onPress }) => {
   return (
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 0,
+    borderRadius: RADIUS.md,
     marginBottom: 12,
     backgroundColor: 'transparent',
     minHeight: 48,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, View, StyleSheet } from 'react-native';
 import { Typography } from '../../atomComponents';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import Icon from './Icon';
 
 const UploadTile = ({ label, done, onToggle, required }) => {
@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -50,6 +51,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 40,
     height: 40,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.elevated,
     alignItems: 'center',
     justifyContent: 'center',
@@ -62,6 +64,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
+    borderRadius: RADIUS.full,
   },
   badgeDone: {
     borderColor: COLORS.primary,

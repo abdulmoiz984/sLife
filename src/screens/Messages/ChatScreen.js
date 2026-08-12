@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, Pressable, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Avatar, Icon } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { getPersonById } from '../../constants/mockData';
 
 const MESSAGES = [
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   thread: { padding: 20, gap: 16, flexGrow: 1 },
   bubbleRow: { alignItems: 'flex-start' },
   bubbleRowMine: { alignItems: 'flex-end' },
-  bubble: { maxWidth: '75%', paddingHorizontal: 16, paddingVertical: 12 },
+  bubble: { maxWidth: '75%', paddingHorizontal: 16, paddingVertical: 12, borderRadius: RADIUS.md },
   mine: {
     backgroundColor: COLORS.elevated,
     borderWidth: 1,
@@ -135,6 +135,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 16,
     color: COLORS.foreground,
     fontSize: 14,
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
   send: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',

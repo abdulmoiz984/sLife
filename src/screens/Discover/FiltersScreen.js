@@ -3,7 +3,7 @@ import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField } from '../../components';
 import { Chip, Icon } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { industries, interests, leadershipLevels } from '../../constants/mockData';
 
 const FilterSection = ({ title, children, defaultOpen = true }) => {
@@ -127,7 +127,7 @@ export default FiltersScreen;
 
 const styles = StyleSheet.create({
   handleWrap: { paddingTop: 12, paddingBottom: 4, alignItems: 'center' },
-  handle: { width: 48, height: 4, backgroundColor: COLORS.border },
+  handle: { width: 48, height: 4, borderRadius: RADIUS.full, backgroundColor: COLORS.border },
   top: {
     flexDirection: 'row',
     alignItems: 'center',

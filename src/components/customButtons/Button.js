@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Sizer from '../../helpers/Sizer';
-import { COLORS, getFontStyle } from '../../globalStyle/Theme';
+import { COLORS, getFontStyle, RADIUS } from '../../globalStyle/Theme';
 
 const BUTTON_HEIGHT = 44;
 
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     height: BUTTON_HEIGHT,
-    borderRadius: 0,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,

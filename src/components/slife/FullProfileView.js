@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Image, StyleSheet, ScrollView } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Typography } from '../../atomComponents';
-import { COLORS, GRADIENTS } from '../../globalStyle/Theme';
+import { COLORS, GRADIENTS, RADIUS } from '../../globalStyle/Theme';
 import { AVAILABILITY_LABELS } from '../../constants/mockData';
 import { getProfileCompletion } from '../../helpers/profileCompletion';
 import { onboardBoardroom } from '../../assets/images';
@@ -540,6 +540,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 12,
   },
   completionRow: {
@@ -553,10 +554,12 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: COLORS.border,
     overflow: 'hidden',
+    borderRadius: RADIUS.full,
   },
   barFill: {
     height: '100%',
     backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
   },
   badgeRow: {
     marginTop: 8,
@@ -570,6 +573,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderWidth: 1,
     borderColor: 'rgba(241,0,0,0.5)',
+    borderRadius: RADIUS.full,
   },
   metaRow: {
     marginTop: 12,
@@ -608,6 +612,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 40,
     height: 40,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.elevated,
     alignItems: 'center',
     justifyContent: 'center',
@@ -617,6 +622,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 16,
     marginBottom: 12,
   },
@@ -644,6 +650,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -658,5 +665,6 @@ const styles = StyleSheet.create({
     padding: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
   },
 });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, Pressable } from 'react-native';
 import Sizer from '../../helpers/Sizer';
-import { COLORS, getFontStyle } from '../../globalStyle/Theme';
+import { COLORS, getFontStyle, RADIUS } from '../../globalStyle/Theme';
 import Typography from '../../atomComponents/Typography';
 import InputLabel from './InputLabel';
 
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
-    borderRadius: 0,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 16,
     minHeight: 48,
   },

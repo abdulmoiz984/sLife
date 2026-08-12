@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 
 /** Animated shimmer block matching v2 `.shimmer` utility */
-const ShimmerBlock = ({ height = 24, width = '100%', style, borderRadius = 0 }) => {
+const ShimmerBlock = ({ height = 24, width = '100%', style, borderRadius = RADIUS.sm }) => {
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

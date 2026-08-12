@@ -3,7 +3,7 @@ import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField } from '../../components';
 import { Avatar, Chip, Icon, TopBar, VerifiedBadge } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { people } from '../../constants/mockData';
 
 const DiscoverScreen = ({ navigation }) => {
@@ -144,13 +144,14 @@ const styles = StyleSheet.create({
   },
   track: { letterSpacing: 0.88 },
   trackSmall: { letterSpacing: 0.66 },
-  seg: { flexDirection: 'row', borderWidth: 1, borderColor: COLORS.border },
+  seg: { flexDirection: 'row', borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm, overflow: 'hidden' },
   segBtn: { paddingHorizontal: 12, height: 32, justifyContent: 'center' },
   segOn: { backgroundColor: COLORS.primary },
   listCard: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -165,6 +166,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 16,
     alignItems: 'center',
   },

@@ -10,7 +10,7 @@ import {
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, AppLogo } from '../../components';
 import { Avatar, Icon, Overline } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { people } from '../../constants/mockData';
 
 const HomeScreen = ({ navigation }) => {
@@ -243,6 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 16,
   },
   matchInner: {
@@ -262,6 +263,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 16,
   },
   ctaRow: {
@@ -277,6 +279,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: COLORS.elevated,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     padding: 20,
@@ -284,6 +288,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 48,
     height: 4,
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.border,
     alignSelf: 'center',
     marginBottom: 16,
@@ -294,6 +299,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
     padding: 12,
     color: COLORS.foreground,
     fontSize: 14,

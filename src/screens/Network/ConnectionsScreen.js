@@ -3,7 +3,7 @@ import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { TextField } from '../../components';
 import { Avatar, Icon, TopBar } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { people } from '../../constants/mockData';
 
 const ConnectionsScreen = ({ navigation }) => {
@@ -101,10 +101,23 @@ const styles = StyleSheet.create({
   body: { padding: 20, paddingBottom: 40 },
   track: { letterSpacing: 0.88 },
   trackSmall: { letterSpacing: 0.66 },
-  seg: { flexDirection: 'row', borderWidth: 1, borderColor: COLORS.border, alignSelf: 'flex-start', marginBottom: 16 },
+  seg: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
   segBtn: { paddingHorizontal: 12, height: 32, justifyContent: 'center' },
   segOn: { backgroundColor: COLORS.primary },
-  list: { borderWidth: 1, borderColor: COLORS.border },
+  list: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -119,6 +132,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },

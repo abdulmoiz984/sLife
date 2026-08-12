@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
 import { FullProfileView, Icon, Overline } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { people } from '../../constants/mockData';
 import { getProfileCompletion } from '../../helpers/profileCompletion';
 
@@ -67,12 +67,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
   },
   actions: { gap: 0 },
   memberCard: {
     borderWidth: 1,
     borderColor: 'rgba(241,0,0,0.6)',
     backgroundColor: 'rgba(241,0,0,0.05)',
+    borderRadius: RADIUS.md,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -84,6 +86,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },

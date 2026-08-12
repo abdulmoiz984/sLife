@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
 import { FullProfileView, Icon } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { getPersonById } from '../../constants/mockData';
 
 const ProfileDetailsScreen = ({ navigation, route }) => {
@@ -70,6 +70,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
     zIndex: 10,
   },
   leftBtn: { left: 20 },

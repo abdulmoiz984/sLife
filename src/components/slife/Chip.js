@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Typography } from '../../atomComponents';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 
 const Chip = ({
   label,
@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,

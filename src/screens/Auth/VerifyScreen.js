@@ -3,7 +3,7 @@ import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField, AppLogo, RegisterProgressBar } from '../../components';
 import { Icon, Chip, Overline, UploadTile } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { goals, industries, interests, professionalRoles } from '../../constants/mockData';
 
 const STEPS = [
@@ -415,6 +415,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderWidth: 2,
     borderColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,

@@ -9,7 +9,7 @@ import {
   SocialAuthButton,
 } from '../../components';
 import { Icon, Overline } from '../../components/slife';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 
 const SignupScreen = ({ navigation }) => {
   const [agreed, setAgreed] = useState(false);
@@ -174,6 +174,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
     marginTop: 2,
     alignItems: 'center',
     justifyContent: 'center',

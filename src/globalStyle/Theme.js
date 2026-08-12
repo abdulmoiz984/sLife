@@ -50,11 +50,11 @@ const COLORS = {
 
 const RADIUS = {
   none: 0,
-  sm: 0,
-  md: 1,
-  lg: 2,
-  xl: 2,
-  xxl: 2,
+  sm: 6,
+  md: 8,
+  lg: 10,
+  xl: 12,
+  xxl: 16,
   full: 999,
 };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { COLORS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 
 const RegisterProgressBar = ({ step, total = 3 }) => {
   const pct = Math.min(100, Math.max(0, (step / total) * 100));
@@ -19,9 +19,11 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: COLORS.border,
     overflow: 'hidden',
+    borderRadius: RADIUS.full,
   },
   fill: {
     height: '100%',
     backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
   },
 });
