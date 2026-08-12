@@ -3,17 +3,26 @@ import { Pressable, StyleSheet } from 'react-native';
 import { Typography } from '../../atomComponents';
 import { COLORS } from '../../globalStyle/Theme';
 
-const Chip = ({ label, active = false, onPress }) => {
+const Chip = ({
+  label,
+  active = false,
+  onPress,
+  style,
+  textAlign = 'center',
+  numberOfLines,
+}) => {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, active ? styles.active : styles.idle]}>
+      style={[styles.chip, active ? styles.active : styles.idle, style]}>
       <Typography
         fixed
         size={12}
         fFamily="interMedium500"
         color={active ? COLORS.primaryForeground : COLORS.foreground}
         textTransform="uppercase"
+        textAlign={textAlign}
+        numberOfLines={numberOfLines}
         style={styles.label}>
         {label}
       </Typography>
@@ -25,8 +34,9 @@ export default Chip;
 
 const styles = StyleSheet.create({
   chip: {
-    height: 32,
+    minHeight: 32,
     paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -43,5 +53,7 @@ const styles = StyleSheet.create({
   },
   label: {
     letterSpacing: 0.72,
+    includeFontPadding: false,
+    lineHeight: 16,
   },
 });

@@ -118,7 +118,11 @@ const DiscoverScreen = ({ navigation }) => {
                   <View style={styles.badge}>
                     <VerifiedBadge tier={p.tier} />
                   </View>
-                  <Chip label={p.industry} />
+                  <Chip
+                    label={p.industry}
+                    style={styles.industryChip}
+                    numberOfLines={2}
+                  />
                 </Pressable>
               ))}
             </View>
@@ -165,4 +169,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badge: { marginVertical: 8 },
+  industryChip: {
+    alignSelf: 'stretch',
+    marginRight: 0,
+    marginBottom: 0,
+    marginTop: 4,
+  },
 });

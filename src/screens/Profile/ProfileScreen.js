@@ -10,7 +10,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
-import { Avatar, Icon, SectionLabel, VerifiedBadge, ShimmerBlock } from '../../components/slife';
+import { Avatar, Icon, SectionLabel, VerifiedBadge } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
 import { getPersonById } from '../../constants/mockData';
 import { onboardBoardroom } from '../../assets/images';
@@ -124,36 +124,32 @@ const ProfileScreen = ({ navigation, route }) => {
           <SectionLabel>Documents & Portfolio</SectionLabel>
 
           <View style={styles.lockedCard}>
-            {/* shimmer placeholder behind overlay */}
-            <View style={styles.shimmerWrap}>
-              <ShimmerBlock height={96} width="100%" />
-            </View>
-
-            {/* locked overlay — matches v2 backdrop-blur + bg-black/30 */}
-            <View style={styles.lockOverlay} pointerEvents="box-none">
-              <Icon.Lock size={24} color={COLORS.primary} />
-              <Typography
-                fixed
-                size={14}
-                fFamily="interSemiBold600"
-                color={COLORS.foreground}
-                mT={12}
-                textAlign="center">
-                Subscribe to view
-              </Typography>
-              <Typography
-                fixed
-                size={12}
-                color={COLORS.body}
-                mT={4}
-                textAlign="center">
-                Portfolio, decks and vetted references.
-              </Typography>
-              <View style={styles.unlockWrap}>
+            <Icon.Lock size={24} color={COLORS.primary} />
+            <Typography
+              fixed
+              size={14}
+              fFamily="interSemiBold600"
+              color={COLORS.foreground}
+              mT={12}
+              textAlign="center">
+              Subscribe to view
+            </Typography>
+            <Typography
+              fixed
+              size={12}
+              color={COLORS.body}
+              mT={4}
+              textAlign="center"
+              style={styles.lockedSub}>
+              Portfolio, decks and vetted references.
+            </Typography>
+            <View style={styles.unlockWrap}>
+              <View style={styles.unlockInner}>
                 <Button
                   full={false}
                   label="Unlock full access"
                   onPress={() => navigation.navigate('SubscriptionScreen')}
+                  btnStyle={styles.unlockBtn}
                 />
               </View>
             </View>
@@ -251,34 +247,28 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   lockedCard: {
-    position: 'relative',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
-    minHeight: 160,
-    padding: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  shimmerWrap: {
-    width: '100%',
-    height: 96,
-  },
-  lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 180,
+    paddingVertical: 36,
     paddingHorizontal: 24,
-    zIndex: 2,
-    ...Platform.select({
-      android: { elevation: 2 },
-      default: {},
-    }),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedSub: {
+    maxWidth: 260,
   },
   unlockWrap: {
     marginTop: 16,
+    width: '100%',
     alignItems: 'center',
+  },
+  unlockInner: {
+    alignItems: 'center',
+  },
+  unlockBtn: {
+    paddingHorizontal: 28,
+    minWidth: 200,
   },
 });
