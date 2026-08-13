@@ -3,7 +3,13 @@ import { nameValidation } from './customValidations';
 
 const BasicInfoSchema = Yup.object().shape({
   full_name: nameValidation(2, 255),
-  phone_number: Yup.string().required('Phone number is required'),
+  phone_number: Yup.string()
+    .required('Phone number is required')
+    .test('phone', 'Enter a valid 10-digit US phone number', value => {
+      if (!value) return false;
+      const digits = String(value).replace(/\D/g, '');
+      return digits.length === 10;
+    }),
   location: Yup.string().required('Location is required'),
 });
 

@@ -166,3 +166,31 @@ export const objectToFormData = (
 
   return formData;
 };
+
+/** Keep only digits, max 10 (US local number). Strips leading country `1`. */
+export const digitsOnly = value => {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.length >= 11 && digits.startsWith('1')) {
+    digits = digits.slice(1);
+  }
+  return digits.slice(0, 10);
+};
+
+/** US local mask: 555-123-4567 (ClayMaster pattern). */
+export const maskPhoneNumber = input => {
+  if (!input) return '';
+  const digits = digitsOnly(input);
+
+  if (digits.length === 0) return '';
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) {
+    return digits.replace(/(\d{3})(\d+)/, '$1-$2');
+  }
+  return digits.replace(/(\d{3})(\d{3})(\d+)/, '$1-$2-$3');
+};
+
+/** Live field display with country code: +1 555-123-4567 */
+export const maskUsPhoneWithCode = input => {
+  const local = maskPhoneNumber(input);
+  return local ? `+1 ${local}` : '+1 ';
+};

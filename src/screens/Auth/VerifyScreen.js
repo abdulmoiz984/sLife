@@ -10,7 +10,13 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
-import { Button, TextField, AppLogo, RegisterProgressBar } from '../../components';
+import {
+  Button,
+  TextField,
+  AppLogo,
+  RegisterProgressBar,
+  ScreenOverlayLoader,
+} from '../../components';
 import {
   Icon,
   Chip,
@@ -32,7 +38,12 @@ import {
   updateNetworkingGoals,
 } from '../../api/profileService';
 import { setProfile, setUser } from '../../redux/slices/appSlice';
-import { formatBackendErrors, showMessage } from '../../utils';
+import {
+  digitsOnly,
+  formatBackendErrors,
+  maskUsPhoneWithCode,
+  showMessage,
+} from '../../utils';
 import { pickUploadAsset } from '../../helpers/pickMedia';
 import { getMe } from '../../api/authService';
 
@@ -107,7 +118,7 @@ const VerifyScreen = ({ navigation }) => {
 
     const b = profile.basic_info || {};
     setFullName(b.full_name || reduxUser?.full_name || '');
-    setPhone(b.phone_number || '');
+    setPhone(digitsOnly(b.phone_number || ''));
     setLocation(b.location || '');
     setPhotoUrl(b.profile_photo_url || null);
 
@@ -177,7 +188,11 @@ const VerifyScreen = ({ navigation }) => {
   const canContinue = useMemo(() => {
     switch (step) {
       case 0:
-        return !!(fullName.trim() && phone.trim() && location.trim());
+        return !!(
+          fullName.trim() &&
+          digitsOnly(phone).length === 10 &&
+          location.trim()
+        );
       case 1:
         return !!(
           title.trim() &&
@@ -297,7 +312,7 @@ const VerifyScreen = ({ navigation }) => {
       if (step === 0) {
         const body = {
           full_name: fullName.trim(),
-          phone_number: phone.trim(),
+          phone_number: maskUsPhoneWithCode(phone).trim(),
           location: location.trim(),
         };
         if (photo) body.profile_photo = photo;
@@ -499,10 +514,15 @@ const VerifyScreen = ({ navigation }) => {
               />
               <TextField
                 label="Phone"
-                placeholder="+1 (555) 000-0000"
-                value={phone}
-                onChangeText={setPhone}
+                placeholder="+1 555-123-4567"
+                value={phone ? maskUsPhoneWithCode(phone) : ''}
+                onChangeText={text => {
+                  // Once typing starts, show +1 live; store only 10 local digits
+                  const cleaned = text.replace(/^\+?1\s*/, '');
+                  setPhone(digitsOnly(cleaned));
+                }}
                 keyboardType="phone-pad"
+                maxLength={15}
               />
               <TextField
                 label="Location"
@@ -745,11 +765,11 @@ const VerifyScreen = ({ navigation }) => {
           label={
             step === STEPS.length - 1 ? 'Submit for verification' : 'Continue'
           }
-          disabled={!canContinue || bootLoading || !optionsReadyForStep}
-          loader={saving}
+          disabled={!canContinue || bootLoading || !optionsReadyForStep || saving}
           onPress={submitStep}
         />
       </View>
+      <ScreenOverlayLoader visible={saving || bootLoading} />
     </SafeAreaWrapper>
   );
 };

@@ -12,6 +12,7 @@ export const ENDPOINTS = {
   ME: 'me',
   LOGOUT: 'logout',
   FORGOT_PASSWORD: 'forgot-password',
+  VERIFY_RESET_OTP: 'verify-reset-otp',
   RESET_PASSWORD: 'reset-password',
 
   // --- Profile & onboarding (Module B) ---

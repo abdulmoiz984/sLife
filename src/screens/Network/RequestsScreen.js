@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
-import { Button } from '../../components';
+import { Button, ScreenOverlayLoader } from '../../components';
 import { Avatar, TopBar } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
@@ -230,6 +230,7 @@ const RequestsScreen = ({ navigation }) => {
           </View>
         ))}
       </ScrollView>
+      <ScreenOverlayLoader visible={!!busyId} />
     </SafeAreaWrapper>
   );
 };

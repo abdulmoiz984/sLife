@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View, Pressable, Keyboard } from 'react-native'
 import { useDispatch } from 'react-redux';
 //------------------
 import { FormController, SafeAreaWrapper, Typography } from '../../atomComponents';
-import { Button, AppLogo, TextField } from '../../components';
+import { Button, AppLogo, TextField, ScreenOverlayLoader } from '../../components';
 import { Overline } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
 import { login } from '../../api/authService';
@@ -117,7 +117,6 @@ const LoginScreen = ({ navigation }) => {
               <Button
                 label="Log in"
                 onPress={handleSubmit}
-                loader={isPending || isLoading}
               />
             </View>
           )}
@@ -144,6 +143,7 @@ const LoginScreen = ({ navigation }) => {
           </Typography>
         </Typography>
       </ScrollView>
+      <ScreenOverlayLoader visible={isPending || isLoading} />
     </SafeAreaWrapper>
   );
 };

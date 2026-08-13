@@ -58,6 +58,7 @@ const isPublicAuthUrl = url => {
     path.includes('login') ||
     path.includes('register') ||
     path.includes('forgot-password') ||
+    path.includes('verify-reset-otp') ||
     path.includes('reset-password')
   );
 };

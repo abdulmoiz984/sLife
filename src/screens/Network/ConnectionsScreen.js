@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
-import { TextField } from '../../components';
+import { TextField, ScreenOverlayLoader } from '../../components';
 import { Avatar, Icon, TopBar } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
@@ -243,6 +243,7 @@ const ConnectionsScreen = ({ navigation }) => {
           </Pressable>
         )}
       </ScrollView>
+      <ScreenOverlayLoader visible={removing} />
     </SafeAreaWrapper>
   );
 };

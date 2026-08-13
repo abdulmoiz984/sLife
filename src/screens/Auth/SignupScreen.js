@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View, Pressable, Keyboard } from 'react-native'
 import { useDispatch } from 'react-redux';
 //------------------
 import { FormController, SafeAreaWrapper, Typography } from '../../atomComponents';
-import { Button, AppLogo, TextField } from '../../components';
+import { Button, AppLogo, TextField, ScreenOverlayLoader } from '../../components';
 import { Icon, Overline } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { register } from '../../api/authService';
@@ -169,7 +169,6 @@ const SignupScreen = ({ navigation }) => {
               <Button
                 label="Create account"
                 onPress={handleSubmit}
-                loader={isPending}
                 disabled={!values.terms_accepted}
               />
             </View>
@@ -197,6 +196,7 @@ const SignupScreen = ({ navigation }) => {
           </Typography>
         </Typography>
       </ScrollView>
+      <ScreenOverlayLoader visible={isPending} />
     </SafeAreaWrapper>
   );
 };

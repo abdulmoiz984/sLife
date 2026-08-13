@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 //------------------
 import { Typography } from '../../atomComponents';
-import { Button } from '../../components';
+import { Button, ScreenOverlayLoader } from '../../components';
 import Overline from './Overline';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomMutation } from '../../query/useCustomMutation';
@@ -114,6 +114,7 @@ const ConnectRequestModal = ({ visible, target, onClose, onSuccess }) => {
           </View>
         </Pressable>
       </Pressable>
+      <ScreenOverlayLoader visible={isPending} />
     </Modal>
   );
 };

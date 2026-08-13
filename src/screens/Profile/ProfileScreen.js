@@ -12,7 +12,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
-import { Button } from '../../components';
+import { Button, ScreenOverlayLoader } from '../../components';
 import {
   Avatar,
   Chip,
@@ -423,6 +423,7 @@ const ProfileScreen = ({ navigation, route }) => {
         target={person}
         onClose={() => setShowReport(false)}
       />
+      <ScreenOverlayLoader visible={cancelling || removing} />
     </SafeAreaWrapper>
   );
 };

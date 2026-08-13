@@ -10,19 +10,17 @@ Update this file when new mismatches appear. Mobile team will keep Module A+ not
 
 ## Open issues
 
-### 1. `POST /forgot-password` returns HTTP 500
+### 1. `POST /forgot-password` returned HTTP 500 (legacy token path) — re-test after OTP deploy
 
 | Field | Value |
 |-------|--------|
 | **Endpoint** | `POST /forgot-password` |
 | **Auth** | Public |
 | **Date seen** | 2026-08-13 |
-| **Request body** | `{ "email": "slife.mobile.test+20260813000735@acmecorp.com" }` |
-| **Observed** | HTTP `500` Internal Server Error |
-| **Expected (doc)** | HTTP `200` with `{ success: true, message: "If an account exists..." }` or `422` if email invalid |
-| **Doc reference** | `mobile-api-integration.md` § A5 |
-| **Mobile impact** | Forgot-password flow cannot complete; app shows generic 500 toast. Reset screen is still reachable via “Already have a reset token?” |
-| **Ask backend** | Confirm mailer/config for reset emails; return doc-shaped `500` body with `message` if send fails, or `200` when email queued |
+| **Observed** | HTTP `500` on demo (old link/token reset path) |
+| **Backend note (2026-08-13)** | Password reset is now **6-digit OTP**. Old `token` field removed; use `otp` + new `POST /verify-reset-otp`. Mobile app updated to OTP flow. |
+| **Ask backend / mobile** | Re-test forgot → verify-reset-otp → reset-password on demo after deploy. If `500` persists, confirm mailer for OTP emails. |
+| **Mobile behavior** | App does **not** navigate to OTP screen on forgot-password failure |
 
 ---
 

@@ -4,6 +4,7 @@ import {
   LoginScreen,
   SignupScreen,
   ForgotPasswordScreen,
+  VerifyResetOtpScreen,
   ResetPasswordScreen,
   SplashScreen,
   OnboardingScreen,
@@ -43,6 +44,7 @@ const StackNavigator = () => {
         options={{ animation: 'slide_from_bottom' }}
         component={ForgotPasswordScreen}
       />
+      <Stack.Screen name="VerifyResetOtpScreen" component={VerifyResetOtpScreen} />
       <Stack.Screen name="ResetPasswordScreen" component={ResetPasswordScreen} />
       <Stack.Screen name="VerifyScreen" component={VerifyScreen} />
       <Stack.Screen name="ProfileSetupScreen" component={ProfileSetupScreen} />

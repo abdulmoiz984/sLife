@@ -1,8 +1,14 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View, Keyboard, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, View, Keyboard } from 'react-native';
 //------------------
 import { FormController, SafeAreaWrapper, Typography } from '../../atomComponents';
-import { Button, AppLogo, TextField, AuthBackLink } from '../../components';
+import {
+  Button,
+  AppLogo,
+  TextField,
+  AuthBackLink,
+  ScreenOverlayLoader,
+} from '../../components';
 import { Overline } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
 import { forgotPassword } from '../../api/authService';
@@ -18,9 +24,14 @@ const ForgotPasswordScreen = ({ navigation }) => {
         type: 'success',
         message:
           response?.message ||
-          'If an account exists with that email, a password reset link has been sent.',
+          'If an account exists with that email, a password reset OTP has been sent.',
       });
-      navigation.navigate('ResetPasswordScreen', { email: values?.email });
+      navigation.navigate('VerifyResetOtpScreen', { email: values?.email });
+    },
+    onError: response => {
+      if (response?.status === 422 && response?.data?.message && !response?.data?.errors) {
+        showMessage({ type: 'danger', message: response.data.message });
+      }
     },
   });
 
@@ -64,7 +75,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
           mT={12}
           LineHeight={20}
           style={styles.sub}>
-          Enter your email and we'll send a reset link.
+          Enter your email and we'll send a 6-digit OTP. Codes expire in 10
+          minutes.
         </Typography>
 
         <FormController
@@ -84,32 +96,14 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 autoCapitalize="none"
               />
               <Button
-                label="Send reset link"
+                label="Send OTP"
                 onPress={handleSubmit}
-                loader={isPending}
               />
-              <Pressable
-                onPress={() =>
-                  navigation.navigate('ResetPasswordScreen', {
-                    email: values.email,
-                  })
-                }
-                style={styles.tokenLink}>
-                <Typography
-                  fixed
-                  size={12}
-                  fFamily="interSemiBold600"
-                  color={COLORS.primary}
-                  textAlign="center"
-                  textTransform="uppercase"
-                  style={styles.track}>
-                  Already have a reset token?
-                </Typography>
-              </Pressable>
             </View>
           )}
         </FormController>
       </ScrollView>
+      <ScreenOverlayLoader visible={isPending} />
     </SafeAreaWrapper>
   );
 };
@@ -134,12 +128,5 @@ const styles = StyleSheet.create({
   },
   form: {
     marginTop: 40,
-  },
-  tokenLink: {
-    marginTop: 20,
-    paddingVertical: 8,
-  },
-  track: {
-    letterSpacing: 0.72,
   },
 });

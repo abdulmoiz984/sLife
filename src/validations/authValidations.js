@@ -32,9 +32,18 @@ const ForgotPasswordSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email').required('Email is required'),
 });
 
+const VerifyResetOtpSchema = Yup.object().shape({
+  email: Yup.string().email('Invalid email').required('Email is required'),
+  otp: Yup.string()
+    .required('OTP is required')
+    .matches(/^\d{6}$/, 'Enter the 6-digit code from your email'),
+});
+
 const ResetPasswordSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email').required('Email is required'),
-  token: Yup.string().required('Reset token is required'),
+  otp: Yup.string()
+    .required('OTP is required')
+    .matches(/^\d{6}$/, 'Enter the 6-digit code from your email'),
   password: Yup.string()
     .required('Password is required')
     .min(10, 'Password must be at least 10 characters')
@@ -51,5 +60,6 @@ export default {
   SignUpSchema,
   SignInSchema,
   ForgotPasswordSchema,
+  VerifyResetOtpSchema,
   ResetPasswordSchema,
 };

@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 //------------------
 import { Typography } from '../../atomComponents';
-import { Button, TextField } from '../../components';
+import { Button, TextField, ScreenOverlayLoader } from '../../components';
 import Icon from './Icon';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
@@ -361,6 +361,7 @@ const EducationsEditor = ({ compact = false }) => {
           </Typography>
         </Pressable>
       )}
+      <ScreenOverlayLoader visible={busy} />
     </View>
   );
 };

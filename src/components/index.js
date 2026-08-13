@@ -8,6 +8,7 @@ import SocialAuthButton from './auth/SocialAuthButton';
 import RegisterProgressBar from './auth/RegisterProgressBar';
 import InterestChip from './auth/InterestChip';
 import ScreenHeader from './common/ScreenHeader';
+import ScreenOverlayLoader from './ScreenOverlayLoader';
 
 export {
   Button,
@@ -20,6 +21,7 @@ export {
   RegisterProgressBar,
   InterestChip,
   ScreenHeader,
+  ScreenOverlayLoader,
 };
 
 export {

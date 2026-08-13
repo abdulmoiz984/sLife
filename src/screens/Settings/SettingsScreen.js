@@ -3,6 +3,7 @@ import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useDispatch } from 'react-redux';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
+import { ScreenOverlayLoader } from '../../components';
 import { Icon, TopBar } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
 import { logout } from '../../api/authService';
@@ -154,6 +155,7 @@ const SettingsScreen = ({ navigation }) => {
           S-Life · Version 1.0
         </Typography>
       </ScrollView>
+      <ScreenOverlayLoader visible={loggingOut} />
     </SafeAreaWrapper>
   );
 };
