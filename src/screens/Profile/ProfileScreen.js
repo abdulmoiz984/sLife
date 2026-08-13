@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Image,
@@ -6,19 +6,77 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+//------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
-import { Avatar, Icon, SectionLabel, VerifiedBadge } from '../../components/slife';
+import {
+  Avatar,
+  Chip,
+  Icon,
+  SectionLabel,
+  VerifiedBadge,
+} from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import { getPersonById } from '../../constants/mockData';
 import { onboardBoardroom } from '../../assets/images';
+import { useCustomQuery } from '../../query/useCustomQuery';
+import { getMember } from '../../api/memberService';
+import {
+  connectionCtaLabel,
+  mapMemberDetail,
+} from '../../helpers/memberMapper';
+import { showMessage } from '../../utils';
 
 const ProfileScreen = ({ navigation, route }) => {
-  const person = getPersonById(route.params?.id);
+  const memberId = route.params?.id;
 
-  if (!person) {
+  const { data, isLoading, isError, error, refetch } = useCustomQuery({
+    queryKey: ['member', memberId],
+    queryFn: () => getMember(memberId),
+    enabled: !!memberId,
+  });
+
+  const person = useMemo(
+    () => mapMemberDetail(data?.member),
+    [data?.member],
+  );
+
+  const cta = connectionCtaLabel(person?.connection);
+  const connected = person?.connection?.status === 'accepted';
+  const pending = person?.connection?.status === 'pending';
+
+  if (!memberId) {
+    return (
+      <SafeAreaWrapper bgColor={COLORS.background}>
+        <View style={styles.empty}>
+          <Typography
+            fixed
+            size={24}
+            fFamily="spaceGroteskBold700"
+            color={COLORS.foreground}>
+            Profile unavailable
+          </Typography>
+          <Button label="Back" onPress={() => navigation.goBack()} mt={24} />
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <SafeAreaWrapper bgColor={COLORS.background}>
+        <View style={styles.empty}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (isError || !person) {
+    const message =
+      error?.response?.data?.message || 'Profile unavailable';
     return (
       <SafeAreaWrapper bgColor={COLORS.background}>
         <View style={styles.empty}>
@@ -35,10 +93,17 @@ const ProfileScreen = ({ navigation, route }) => {
             size={24}
             fFamily="spaceGroteskBold700"
             color={COLORS.foreground}
-            mT={8}>
-            Profile unavailable
+            mT={8}
+            textAlign="center">
+            {message}
           </Typography>
-          <Button label="Back to Discover" onPress={() => navigation.goBack()} mt={24} />
+          <Button label="Retry" onPress={() => refetch()} mt={16} />
+          <Button
+            type="outline"
+            label="Back to Discover"
+            onPress={() => navigation.goBack()}
+            mt={12}
+          />
         </View>
       </SafeAreaWrapper>
     );
@@ -46,14 +111,15 @@ const ProfileScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}>
         <View>
           <View style={styles.coverWrap}>
             <Image
               source={onboardBoardroom}
               style={styles.cover}
               resizeMode="cover"
-              blurRadius={Platform.OS === 'ios' ? 1 : 1}
             />
             <LinearGradient
               colors={['rgba(0,0,0,0.5)', COLORS.background]}
@@ -65,9 +131,6 @@ const ProfileScreen = ({ navigation, route }) => {
               hitSlop={8}>
               <Icon.ArrowLeft size={20} color={COLORS.foreground} />
             </Pressable>
-            <Pressable style={[styles.iconBtn, styles.rightBtn]} hitSlop={8}>
-              <Icon.DotsV size={20} color={COLORS.foreground} />
-            </Pressable>
           </View>
           <View style={styles.avatarWrap}>
             <Avatar src={person.avatar} size={96} tier={person.tier} />
@@ -75,42 +138,81 @@ const ProfileScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.intro}>
-          <Typography fixed size={24} fFamily="spaceGroteskBold700" color={COLORS.foreground}>
+          <Typography
+            fixed
+            size={24}
+            fFamily="spaceGroteskBold700"
+            color={COLORS.foreground}>
             {person.name}
           </Typography>
-          <Typography fixed size={14} color={COLORS.body} mT={4}>
-            {person.headline}
-          </Typography>
+          {!!person.headline && (
+            <Typography fixed size={14} color={COLORS.body} mT={4}>
+              {person.headline}
+            </Typography>
+          )}
           <View style={styles.badge}>
             <VerifiedBadge tier={person.tier} />
           </View>
           <View style={styles.meta}>
-            <View style={styles.metaItem}>
-              <Icon.Building size={16} color={COLORS.mute} />
-              <Typography fixed size={13} color={COLORS.mute} style={styles.metaText}>
-                {person.currentPosition} · {person.company}
-              </Typography>
-            </View>
-            <View style={styles.metaItem}>
-              <Icon.Pin size={16} color={COLORS.mute} />
-              <Typography fixed size={13} color={COLORS.mute}>
-                {person.location}
-              </Typography>
-            </View>
+            {(person.company || person.roleLabel) && (
+              <View style={styles.metaItem}>
+                <Icon.Building size={16} color={COLORS.mute} />
+                <Typography
+                  fixed
+                  size={13}
+                  color={COLORS.mute}
+                  style={styles.metaText}>
+                  {[person.roleLabel || person.headline, person.company]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Typography>
+              </View>
+            )}
+            {!!person.location && (
+              <View style={styles.metaItem}>
+                <Icon.Pin size={16} color={COLORS.mute} />
+                <Typography fixed size={13} color={COLORS.mute}>
+                  {person.location}
+                </Typography>
+              </View>
+            )}
+            {person.yearsExperience != null && (
+              <View style={styles.metaItem}>
+                <Icon.Sparkle size={16} color={COLORS.mute} />
+                <Typography fixed size={13} color={COLORS.mute}>
+                  {person.yearsExperience} years experience
+                </Typography>
+              </View>
+            )}
           </View>
 
           <View style={styles.ctaRow}>
             <View style={styles.col}>
-              <Button label="Connect" disabled />
+              <Button
+                label={cta}
+                disabled={connected || pending}
+                onPress={() => {
+                  showMessage({
+                    type: 'default',
+                    message:
+                      'Connection actions will be available in the next module.',
+                  });
+                }}
+              />
             </View>
             <View style={styles.col}>
-              <Pressable disabled style={styles.messageBtn}>
-                <Icon.Lock size={16} color={COLORS.mute} />
+              <Pressable
+                disabled={!connected}
+                style={[styles.messageBtn, !connected && styles.messageDisabled]}
+                onPress={() =>
+                  navigation.navigate('ChatScreen', { id: person.id })
+                }>
+                {!connected && <Icon.Lock size={16} color={COLORS.mute} />}
                 <Typography
                   fixed
                   size={12}
                   fFamily="interSemiBold600"
-                  color={COLORS.mute}
+                  color={connected ? COLORS.foreground : COLORS.mute}
                   textTransform="uppercase"
                   style={styles.messageLabel}>
                   Message
@@ -120,41 +222,93 @@ const ProfileScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <SectionLabel>Documents & Portfolio</SectionLabel>
+        {!!person.bio && (
+          <View style={styles.section}>
+            <SectionLabel>About</SectionLabel>
+            <Typography fixed size={14} color={COLORS.body} LineHeight={22}>
+              {person.bio}
+            </Typography>
+          </View>
+        )}
 
-          <View style={styles.lockedCard}>
-            <Icon.Lock size={24} color={COLORS.primary} />
-            <Typography
-              fixed
-              size={14}
-              fFamily="interSemiBold600"
-              color={COLORS.foreground}
-              mT={12}
-              textAlign="center">
-              Subscribe to view
-            </Typography>
-            <Typography
-              fixed
-              size={12}
-              color={COLORS.body}
-              mT={4}
-              textAlign="center"
-              style={styles.lockedSub}>
-              Portfolio, decks and vetted references.
-            </Typography>
-            <View style={styles.unlockWrap}>
-              <View style={styles.unlockInner}>
-                <Button
-                  full={false}
-                  label="Unlock full access"
-                  onPress={() => navigation.navigate('SubscriptionScreen')}
-                  btnStyle={styles.unlockBtn}
-                />
-              </View>
+        {person.interests?.length > 0 && (
+          <View style={styles.section}>
+            <SectionLabel>Interests</SectionLabel>
+            <View style={styles.chips}>
+              {person.interests.map(i => (
+                <Chip key={i} label={i} />
+              ))}
             </View>
           </View>
-        </View>
+        )}
+
+        {person.networkingGoals?.length > 0 && (
+          <View style={styles.section}>
+            <SectionLabel>Networking goals</SectionLabel>
+            <View style={styles.chips}>
+              {person.networkingGoals.map(g => (
+                <Chip key={g} label={g} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {person.education?.length > 0 && (
+          <View style={styles.section}>
+            <SectionLabel>Education</SectionLabel>
+            {person.education.map((e, idx) => (
+              <View key={`${e.school}-${idx}`} style={styles.eduCard}>
+                <Typography
+                  fixed
+                  size={14}
+                  fFamily="interSemiBold600"
+                  color={COLORS.foreground}>
+                  {e.school}
+                </Typography>
+                <Typography fixed size={13} color={COLORS.body} mT={4}>
+                  {[e.degree, e.field].filter(Boolean).join(' · ')}
+                </Typography>
+                {!!e.period && (
+                  <Typography fixed size={12} color={COLORS.mute} mT={4}>
+                    {e.period}
+                  </Typography>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {(person.linkedin || person.website) && (
+          <View style={styles.section}>
+            <SectionLabel>Links</SectionLabel>
+            {!!person.linkedin && (
+              <Typography fixed size={13} color={COLORS.primary} mB={8}>
+                {person.linkedin}
+              </Typography>
+            )}
+            {!!person.website && (
+              <Typography fixed size={13} color={COLORS.primary}>
+                {person.website}
+              </Typography>
+            )}
+          </View>
+        )}
+
+        {connected && (person.email || person.phone) && (
+          <View style={styles.section}>
+            <SectionLabel>Contact</SectionLabel>
+            {!!person.email && (
+              <Typography fixed size={13} color={COLORS.body}>
+                {person.email}
+              </Typography>
+            )}
+            {!!person.phone && (
+              <Typography fixed size={13} color={COLORS.body} mT={4}>
+                {person.phone}
+              </Typography>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaWrapper>
   );
@@ -197,7 +351,6 @@ const styles = StyleSheet.create({
     }),
   },
   leftBtn: { left: 20 },
-  rightBtn: { right: 20 },
   avatarWrap: {
     paddingHorizontal: 20,
     marginTop: -48,
@@ -238,6 +391,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  messageDisabled: {
     opacity: 0.7,
   },
   messageLabel: {
@@ -248,30 +403,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 32,
   },
-  lockedCard: {
-    backgroundColor: COLORS.background,
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  eduCard: {
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
-    minHeight: 180,
-    paddingVertical: 36,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockedSub: {
-    maxWidth: 260,
-  },
-  unlockWrap: {
-    marginTop: 16,
-    width: '100%',
-    alignItems: 'center',
-  },
-  unlockInner: {
-    alignItems: 'center',
-  },
-  unlockBtn: {
-    paddingHorizontal: 28,
-    minWidth: 200,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    padding: 14,
+    marginBottom: 10,
   },
 });

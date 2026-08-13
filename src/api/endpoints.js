@@ -28,4 +28,9 @@ export const ENDPOINTS = {
   EDUCATIONS: 'profile/educations',
   EDUCATION: id => `profile/educations/${id}`,
   EDUCATIONS_SYNC: 'profile/educations/sync',
+
+  // --- Members (Module D) ---
+  MEMBERS: 'members',
+  MEMBERS_MATCHES: 'members/matches',
+  MEMBER: userId => `members/${userId}`,
 };

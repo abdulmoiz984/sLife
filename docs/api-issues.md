@@ -97,6 +97,18 @@ Not fully exercised yet (blocked by empty options): professional-info, organizat
 
 No Module C blockers found in live probes (2026-08-13).
 
+### Module D — Members
+
+| Endpoint | Result |
+|----------|--------|
+| `GET /members` | `200` — list + `meta` pagination |
+| `GET /members?q=` | `200` — text search works without subscription |
+| `GET /members?industry=saas` | `422` — advanced filters require subscription (as documented) |
+| `GET /members/{id}` | `200` — detail profile |
+| `GET /members/matches` | `200` — empty `matches` for incomplete test user (expected when no role/interests) |
+
+No unexpected Module D blockers. Empty matches for QA account is data/profile completeness, not an API defect.
+
 ---
 
 ## Test account (mobile QA)

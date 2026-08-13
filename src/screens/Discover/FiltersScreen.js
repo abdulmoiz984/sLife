@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+//------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField } from '../../components';
 import { Chip, Icon } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import { industries, interests, leadershipLevels } from '../../constants/mockData';
+import { useCustomQuery } from '../../query/useCustomQuery';
+import { getProfileOptions } from '../../api/profileService';
+import { showMessage } from '../../utils';
 
 const FilterSection = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -29,13 +32,56 @@ const FilterSection = ({ title, children, defaultOpen = true }) => {
   );
 };
 
-const FiltersScreen = ({ navigation }) => {
-  const [ind, setInd] = useState([]);
-  const [lev, setLev] = useState([]);
-  const [size, setSize] = useState([]);
-  const [int, setInt] = useState([]);
-  const toggle = (arr, setArr, v) => setArr(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
-  const count = 128 - (ind.length + lev.length + size.length + int.length) * 3;
+const FiltersScreen = ({ navigation, route }) => {
+  const initial = route?.params?.filters || {};
+  const [industry, setIndustry] = useState(initial.industry || '');
+  const [role, setRole] = useState(initial.professional_role || '');
+  const [orgSize, setOrgSize] = useState(initial.organization_size || '');
+  const [location, setLocation] = useState(initial.location || '');
+
+  const { data: optionsRes } = useCustomQuery({
+    queryKey: ['profileOptions'],
+    queryFn: getProfileOptions,
+  });
+
+  const options = optionsRes?.options || {};
+  const industries = options.industries || [];
+  const roles = options.professional_roles || [];
+  const sizes = options.organization_sizes || [];
+
+  const activeCount = useMemo(
+    () =>
+      [industry, role, orgSize, location.trim()].filter(Boolean).length,
+    [industry, role, orgSize, location],
+  );
+
+  const apply = () => {
+    const filters = {};
+    if (industry) filters.industry = industry;
+    if (role) filters.professional_role = role;
+    if (orgSize) filters.organization_size = orgSize;
+    if (location.trim()) filters.location = location.trim();
+
+    if (Object.keys(filters).length) {
+      showMessage({
+        type: 'default',
+        message:
+          'Advanced filters require subscription access. The server may reject them with 422.',
+      });
+    }
+
+    navigation.navigate('MainTabs', {
+      screen: 'DiscoverTab',
+      params: { filters },
+    });
+  };
+
+  const reset = () => {
+    setIndustry('');
+    setRole('');
+    setOrgSize('');
+    setLocation('');
+  };
 
   return (
     <SafeAreaWrapper edges={['top', 'bottom']} bgColor={COLORS.surface}>
@@ -43,59 +89,93 @@ const FiltersScreen = ({ navigation }) => {
         <View style={styles.handle} />
       </View>
       <View style={styles.top}>
-        <Typography fixed size={18} fFamily="spaceGroteskBold700" color={COLORS.foreground}>
+        <Typography
+          fixed
+          size={18}
+          fFamily="spaceGroteskBold700"
+          color={COLORS.foreground}>
           Filters
         </Typography>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
           <Icon.Close size={20} color={COLORS.foreground} />
         </Pressable>
       </View>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}>
+        <Typography fixed size={12} color={COLORS.mute} mB={16} LineHeight={18}>
+          Text search is always free. Industry, role, size, and location are
+          advanced filters (subscription / trial gated on the API).
+        </Typography>
+
         <FilterSection title="Industry">
-          <View style={styles.chips}>
-            {industries.map(i => (
-              <Chip key={i} label={i} active={ind.includes(i)} onPress={() => toggle(ind, setInd, i)} />
-            ))}
-          </View>
+          {industries.length === 0 ? (
+            <Typography fixed size={13} color={COLORS.mute}>
+              No industry options from server yet.
+            </Typography>
+          ) : (
+            <View style={styles.chips}>
+              {industries.map(item => (
+                <Chip
+                  key={item.value}
+                  label={item.label}
+                  active={industry === item.value}
+                  onPress={() =>
+                    setIndustry(industry === item.value ? '' : item.value)
+                  }
+                />
+              ))}
+            </View>
+          )}
         </FilterSection>
-        <FilterSection title="Job title">
-          <TextField placeholder="Search titles" mB={12} />
-          <View style={styles.chips}>
-            {['Founder', 'CEO', 'CFO', 'Partner', 'Director', 'Consultant'].map(t => (
-              <Chip key={t} label={t} />
-            ))}
-          </View>
+
+        <FilterSection title="Professional role" defaultOpen={false}>
+          {roles.length === 0 ? (
+            <Typography fixed size={13} color={COLORS.mute}>
+              No role options from server yet.
+            </Typography>
+          ) : (
+            <View style={styles.chips}>
+              {roles.map(item => (
+                <Chip
+                  key={item.value}
+                  label={item.label}
+                  active={role === item.value}
+                  onPress={() => setRole(role === item.value ? '' : item.value)}
+                />
+              ))}
+            </View>
+          )}
         </FilterSection>
-        <FilterSection title="Experience Level">
-          <View style={styles.chips}>
-            {['Entry', 'Mid', 'Senior', 'Executive'].map(l => (
-              <Chip key={l} label={l} active={lev.includes(l)} onPress={() => toggle(lev, setLev, l)} />
-            ))}
-          </View>
+
+        <FilterSection title="Organization size" defaultOpen={false}>
+          {sizes.length === 0 ? (
+            <Typography fixed size={13} color={COLORS.mute}>
+              No size options from server yet.
+            </Typography>
+          ) : (
+            <View style={styles.chips}>
+              {sizes.map(item => (
+                <Chip
+                  key={item.value}
+                  label={item.label}
+                  active={orgSize === item.value}
+                  onPress={() =>
+                    setOrgSize(orgSize === item.value ? '' : item.value)
+                  }
+                />
+              ))}
+            </View>
+          )}
         </FilterSection>
-        <FilterSection title="Company Size">
-          <View style={styles.chips}>
-            {['1–10', '11–50', '51–200', '201–1k', '1k–10k', '10k+'].map(s => (
-              <Chip key={s} label={s} active={size.includes(s)} onPress={() => toggle(size, setSize, s)} />
-            ))}
-          </View>
-        </FilterSection>
+
         <FilterSection title="Location" defaultOpen={false}>
-          <TextField placeholder="City or country" />
-        </FilterSection>
-        <FilterSection title="Professional Interests" defaultOpen={false}>
-          <View style={styles.chips}>
-            {interests.map(i => (
-              <Chip key={i} label={i} active={int.includes(i)} onPress={() => toggle(int, setInt, i)} />
-            ))}
-          </View>
-        </FilterSection>
-        <FilterSection title="Professional Role" defaultOpen={false}>
-          <View style={styles.chips}>
-            {leadershipLevels.map(l => (
-              <Chip key={l} label={l} />
-            ))}
-          </View>
+          <TextField
+            placeholder="City or country"
+            value={location}
+            onChangeText={setLocation}
+            autoCapitalize="words"
+          />
         </FilterSection>
       </ScrollView>
       <View style={styles.footer}>
@@ -104,18 +184,15 @@ const FiltersScreen = ({ navigation }) => {
             type="outline"
             label="Reset"
             textColor={COLORS.mute}
-            onPress={() => {
-              setInd([]);
-              setLev([]);
-              setSize([]);
-              setInt([]);
-            }}
+            onPress={reset}
           />
         </View>
         <View style={styles.col}>
           <Button
-            label={`Show ${Math.max(count, 0)} results`}
-            onPress={() => navigation.goBack()}
+            label={
+              activeCount ? `Apply ${activeCount} filter${activeCount > 1 ? 's' : ''}` : 'Show results'
+            }
+            onPress={apply}
           />
         </View>
       </View>
@@ -127,7 +204,12 @@ export default FiltersScreen;
 
 const styles = StyleSheet.create({
   handleWrap: { paddingTop: 12, paddingBottom: 4, alignItems: 'center' },
-  handle: { width: 48, height: 4, borderRadius: RADIUS.full, backgroundColor: COLORS.border },
+  handle: {
+    width: 48,
+    height: 4,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.border,
+  },
   top: {
     flexDirection: 'row',
     alignItems: 'center',

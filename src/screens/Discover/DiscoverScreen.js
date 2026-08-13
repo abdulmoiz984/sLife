@@ -1,22 +1,86 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+//------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField } from '../../components';
-import { Avatar, Chip, Icon, TopBar, VerifiedBadge } from '../../components/slife';
+import { Avatar, Chip, Icon, TopBar } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import { people } from '../../constants/mockData';
+import { useCustomQuery } from '../../query/useCustomQuery';
+import { getMembers } from '../../api/memberService';
+import {
+  connectionCtaLabel,
+  mapMemberCard,
+} from '../../helpers/memberMapper';
+import { showMessage } from '../../utils';
 
-const DiscoverScreen = ({ navigation }) => {
+const DiscoverScreen = ({ navigation, route }) => {
   const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [view, setView] = useState('list');
+  const routeFilters = route?.params?.filters || {};
 
-  const filtered = people.filter(
-    p =>
-      !q ||
-      p.name.toLowerCase().includes(q.toLowerCase()) ||
-      p.headline.toLowerCase().includes(q.toLowerCase()) ||
-      p.industry.toLowerCase().includes(q.toLowerCase()),
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 350);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const queryParams = useMemo(() => {
+    const params = { per_page: 20, page: 1 };
+    if (debouncedQ) params.q = debouncedQ;
+    if (routeFilters.industry) params.industry = routeFilters.industry;
+    if (routeFilters.professional_role) {
+      params.professional_role = routeFilters.professional_role;
+    }
+    if (routeFilters.organization_size) {
+      params.organization_size = routeFilters.organization_size;
+    }
+    if (routeFilters.location) params.location = routeFilters.location;
+    return params;
+  }, [debouncedQ, routeFilters]);
+
+  const hasAdvancedFilters = !!(
+    routeFilters.industry ||
+    routeFilters.professional_role ||
+    routeFilters.organization_size ||
+    routeFilters.location
   );
+
+  const { data, isLoading, isFetching, isError, error, refetch } =
+    useCustomQuery({
+      queryKey: ['members', queryParams],
+      queryFn: () => getMembers(queryParams),
+    });
+
+  useEffect(() => {
+    if (!isError) return;
+    const status = error?.response?.status;
+    const message = error?.response?.data?.message;
+    const filterErr = error?.response?.data?.errors?.filters?.[0];
+    if (status === 422) {
+      showMessage({
+        type: 'danger',
+        message:
+          filterErr ||
+          message ||
+          'Advanced search filters require an active subscription.',
+      });
+    }
+  }, [isError, error]);
+
+  const members = (data?.members || []).map(mapMemberCard).filter(Boolean);
+  const total = data?.meta?.total ?? members.length;
+
+  const openProfile = id => {
+    navigation.getParent()?.navigate('ProfileScreen', { id });
+  };
+
+  const connectLabel = person => connectionCtaLabel(person.connection);
 
   return (
     <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
@@ -24,13 +88,49 @@ const DiscoverScreen = ({ navigation }) => {
         overline="The Directory"
         title="Discover Professionals"
         right={
-          <Pressable onPress={() => navigation.getParent()?.navigate('FiltersScreen')} hitSlop={8}>
+          <Pressable
+            onPress={() =>
+              navigation.getParent()?.navigate('FiltersScreen', {
+                filters: routeFilters,
+              })
+            }
+            hitSlop={8}>
             <Icon.Filter size={20} color={COLORS.foreground} />
           </Pressable>
         }
       />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <TextField placeholder="Search by name, title or industry" value={q} onChangeText={setQ} mB={16} />
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <TextField
+          placeholder="Search by name, title or industry"
+          value={q}
+          onChangeText={setQ}
+          mB={16}
+        />
+        {hasAdvancedFilters && (
+          <View style={styles.filterNote}>
+            <Typography fixed size={12} color={COLORS.body} LineHeight={18}>
+              Advanced filters applied. These require subscription access on the
+              server.
+            </Typography>
+            <Pressable
+              onPress={() =>
+                navigation.setParams({ filters: undefined })
+              }
+              style={styles.clearFilters}>
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.primary}
+                textTransform="uppercase">
+                Clear filters
+              </Typography>
+            </Pressable>
+          </View>
+        )}
         <View style={styles.metaRow}>
           <Typography
             fixed
@@ -38,7 +138,7 @@ const DiscoverScreen = ({ navigation }) => {
             color={COLORS.mute}
             textTransform="uppercase"
             style={styles.track}>
-            {filtered.length} verified professionals
+            {isLoading ? 'Loading…' : `${total} professionals`}
           </Typography>
           <View style={styles.seg}>
             {['list', 'grid'].map(v => (
@@ -60,11 +160,31 @@ const DiscoverScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {(isLoading || isFetching) && (
+          <ActivityIndicator color={COLORS.primary} style={styles.loader} />
+        )}
+
+        {!isLoading && isError && (
+          <View style={styles.empty}>
+            <Typography fixed size={14} color={COLORS.body} textAlign="center">
+              Could not load members.
+            </Typography>
+            <Button label="Retry" onPress={() => refetch()} mt={16} />
+          </View>
+        )}
+
+        {!isLoading && !isError && members.length === 0 && (
+          <View style={styles.empty}>
+            <Typography fixed size={14} color={COLORS.mute} textAlign="center">
+              No members found.
+            </Typography>
+          </View>
+        )}
+
         {view === 'list'
-          ? filtered.map(p => (
+          ? members.map(p => (
               <View key={p.id} style={styles.listCard}>
-                <Pressable
-                  onPress={() => navigation.getParent()?.navigate('ProfileScreen', { id: p.id })}>
+                <Pressable onPress={() => openProfile(p.id)}>
                   <Avatar src={p.avatar} size={56} tier={p.tier} />
                 </Pressable>
                 <View style={styles.listCopy}>
@@ -74,28 +194,36 @@ const DiscoverScreen = ({ navigation }) => {
                     fFamily="interSemiBold600"
                     color={COLORS.foreground}
                     numberOfLines={1}
-                    onPress={() => navigation.getParent()?.navigate('ProfileScreen', { id: p.id })}>
+                    onPress={() => openProfile(p.id)}>
                     {p.name}
                   </Typography>
                   <Typography fixed size={12} color={COLORS.body} numberOfLines={1}>
-                    {p.headline}
+                    {p.headline || p.industry || 'Professional'}
                   </Typography>
                   <Typography fixed size={11} color={COLORS.mute} mT={4}>
-                    {p.location} · {p.mutual} mutual
+                    {[p.location, p.company].filter(Boolean).join(' · ') ||
+                      '—'}
                   </Typography>
                 </View>
                 <View style={styles.connectBtn}>
-                  <Button label="Connect" onPress={() => {}} />
+                  <Button
+                    label={connectLabel(p)}
+                    disabled={
+                      p.connection?.status === 'accepted' ||
+                      p.connection?.status === 'pending'
+                    }
+                    onPress={() => openProfile(p.id)}
+                  />
                 </View>
               </View>
             ))
           : (
             <View style={styles.grid}>
-              {filtered.map(p => (
+              {members.map(p => (
                 <Pressable
                   key={p.id}
                   style={styles.gridCard}
-                  onPress={() => navigation.getParent()?.navigate('ProfileScreen', { id: p.id })}>
+                  onPress={() => openProfile(p.id)}>
                   <Avatar src={p.avatar} size={72} tier={p.tier} />
                   <Typography
                     fixed
@@ -113,16 +241,15 @@ const DiscoverScreen = ({ navigation }) => {
                     color={COLORS.body}
                     numberOfLines={2}
                     textAlign="center">
-                    {p.headline}
+                    {p.headline || 'Professional'}
                   </Typography>
-                  <View style={styles.badge}>
-                    <VerifiedBadge tier={p.tier} />
-                  </View>
-                  <Chip
-                    label={p.industry}
-                    style={styles.industryChip}
-                    numberOfLines={2}
-                  />
+                  {!!p.industry && (
+                    <Chip
+                      label={p.industry}
+                      style={styles.industryChip}
+                      numberOfLines={2}
+                    />
+                  )}
                 </Pressable>
               ))}
             </View>
@@ -136,6 +263,15 @@ export default DiscoverScreen;
 
 const styles = StyleSheet.create({
   body: { padding: 20, paddingBottom: 40 },
+  filterNote: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: 12,
+    marginBottom: 16,
+  },
+  clearFilters: { marginTop: 8 },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -144,9 +280,17 @@ const styles = StyleSheet.create({
   },
   track: { letterSpacing: 0.88 },
   trackSmall: { letterSpacing: 0.66 },
-  seg: { flexDirection: 'row', borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm, overflow: 'hidden' },
+  seg: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
+  },
   segBtn: { paddingHorizontal: 12, height: 32, justifyContent: 'center' },
   segOn: { backgroundColor: COLORS.primary },
+  loader: { marginVertical: 24 },
+  empty: { paddingVertical: 40, alignItems: 'center' },
   listCard: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
@@ -170,11 +314,10 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
-  badge: { marginVertical: 8 },
   industryChip: {
     alignSelf: 'stretch',
     marginRight: 0,
     marginBottom: 0,
-    marginTop: 4,
+    marginTop: 8,
   },
 });

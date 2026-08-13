@@ -1,38 +1,74 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   ScrollView,
   Pressable,
   StyleSheet,
-  Modal,
-  TextInput,
+  ActivityIndicator,
 } from 'react-native';
+//------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, AppLogo } from '../../components';
 import { Avatar, Icon, Overline } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import { people } from '../../constants/mockData';
+import { useCustomQuery } from '../../query/useCustomQuery';
+import { getMemberMatches, getMembers } from '../../api/memberService';
+import {
+  connectionCtaLabel,
+  mapMemberCard,
+} from '../../helpers/memberMapper';
+import { showMessage } from '../../utils';
 
 const HomeScreen = ({ navigation }) => {
-  const featured = people.slice(0, 4);
-  const [requestFor, setRequestFor] = useState(null);
-  const [note, setNote] = useState('');
-  const [pendingIds, setPendingIds] = useState([]);
+  const {
+    data: matchesRes,
+    isLoading: matchesLoading,
+  } = useCustomQuery({
+    queryKey: ['memberMatches', { limit: 8 }],
+    queryFn: () => getMemberMatches({ limit: 8 }),
+  });
 
-  const openRequest = person => {
-    setRequestFor(person);
-    setNote('');
+  const {
+    data: membersRes,
+    isLoading: membersLoading,
+    refetch: refetchMembers,
+  } = useCustomQuery({
+    queryKey: ['members', { per_page: 20, page: 1 }],
+    queryFn: () => getMembers({ per_page: 20, page: 1 }),
+  });
+
+  const matches = useMemo(
+    () =>
+      (matchesRes?.matches || [])
+        .map(row => {
+          const card = mapMemberCard(row.member);
+          if (!card) return null;
+          return { ...card, score: row.score, sameRole: row.same_role };
+        })
+        .filter(Boolean),
+    [matchesRes],
+  );
+
+  const members = useMemo(
+    () => (membersRes?.members || []).map(mapMemberCard).filter(Boolean),
+    [membersRes],
+  );
+
+  const openProfile = id => {
+    navigation.getParent()?.navigate('ProfileScreen', { id });
   };
 
-  const closeRequest = () => {
-    setRequestFor(null);
-    setNote('');
-  };
-
-  const sendRequest = () => {
-    if (!requestFor) return;
-    setPendingIds(prev => [...prev, requestFor.id]);
-    closeRequest();
+  const onConnectPress = person => {
+    // Module E will wire POST /connections — open profile for now
+    if (person.connection?.status === 'pending') {
+      showMessage({ type: 'default', message: 'Connection request pending.' });
+      return;
+    }
+    if (person.connection?.status === 'accepted') {
+      openProfile(person.id);
+      return;
+    }
+    openProfile(person.id);
   };
 
   return (
@@ -40,7 +76,11 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.header}>
         <View style={styles.brand}>
           <AppLogo size={32} />
-          <Typography fixed size={16} fFamily="spaceGroteskBold700" color={COLORS.foreground}>
+          <Typography
+            fixed
+            size={16}
+            fFamily="spaceGroteskBold700"
+            color={COLORS.foreground}>
             S-Life
           </Typography>
         </View>
@@ -49,23 +89,30 @@ const HomeScreen = ({ navigation }) => {
             <Icon.Search size={20} color={COLORS.foreground} />
           </Pressable>
           <Pressable
-            onPress={() => navigation.getParent()?.navigate('NotificationsScreen')}
+            onPress={() =>
+              navigation.getParent()?.navigate('NotificationsScreen')
+            }
             hitSlop={8}
             style={styles.bell}>
             <Icon.Bell size={20} color={COLORS.foreground} />
-            <View style={styles.dot} />
           </Pressable>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}>
         <View style={styles.sectionHead}>
           <View>
             <Overline>Recommended for you</Overline>
             <View style={styles.titleRow}>
               <Icon.Sparkle size={20} color={COLORS.primary} />
-              <Typography fixed size={20} fFamily="spaceGroteskBold700" color={COLORS.foreground}>
-                AI Curated Matches
+              <Typography
+                fixed
+                size={20}
+                fFamily="spaceGroteskBold700"
+                color={COLORS.foreground}>
+                Curated Matches
               </Typography>
             </View>
           </View>
@@ -82,105 +129,125 @@ const HomeScreen = ({ navigation }) => {
           </Pressable>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.carousel}>
-          {featured.map(p => (
-            <Pressable
-              key={p.id}
-              style={styles.matchCard}
-              onPress={() =>
-                navigation.getParent()?.navigate('ProfileScreen', { id: p.id })
-              }>
-              <View style={styles.matchInner}>
-                <Avatar src={p.avatar} size={56} tier={p.tier} />
-                <View style={styles.matchCopy}>
-                  <Typography fixed size={15} fFamily="interSemiBold600" color={COLORS.foreground} numberOfLines={1}>
-                    {p.name}
-                  </Typography>
-                  <Typography fixed size={12} color={COLORS.body} numberOfLines={1}>
-                    {p.headline}
-                  </Typography>
+        {matchesLoading ? (
+          <ActivityIndicator color={COLORS.primary} style={styles.loader} />
+        ) : matches.length === 0 ? (
+          <View style={styles.emptyMatch}>
+            <Typography fixed size={13} color={COLORS.mute} LineHeight={20}>
+              No recommended matches yet. Complete your professional role and
+              interests in onboarding to improve matching.
+            </Typography>
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.carousel}>
+            {matches.map(p => (
+              <Pressable
+                key={p.id}
+                style={styles.matchCard}
+                onPress={() => openProfile(p.id)}>
+                <View style={styles.matchInner}>
+                  <Avatar src={p.avatar} size={56} tier={p.tier} />
+                  <View style={styles.matchCopy}>
+                    <Typography
+                      fixed
+                      size={15}
+                      fFamily="interSemiBold600"
+                      color={COLORS.foreground}
+                      numberOfLines={1}>
+                      {p.name}
+                    </Typography>
+                    <Typography
+                      fixed
+                      size={12}
+                      color={COLORS.body}
+                      numberOfLines={1}>
+                      {p.headline || 'Professional'}
+                    </Typography>
+                    {p.score != null && (
+                      <Typography fixed size={11} color={COLORS.mute} mT={4}>
+                        Match score {p.score}
+                      </Typography>
+                    )}
+                  </View>
                 </View>
-              </View>
-            </Pressable>
-          ))}
-        </ScrollView>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         <View style={styles.feedHead}>
           <Overline>The Circle</Overline>
-          <Typography fixed size={20} fFamily="spaceGroteskBold700" color={COLORS.foreground} mT={4}>
+          <Typography
+            fixed
+            size={20}
+            fFamily="spaceGroteskBold700"
+            color={COLORS.foreground}
+            mT={4}>
             Members you should know
           </Typography>
         </View>
 
-        {people.map(p => {
-          const isPending = pendingIds.includes(p.id);
-          return (
-            <View key={p.id} style={styles.feedCard}>
-              <View style={styles.matchInner}>
-                <Avatar src={p.avatar} size={56} tier={p.tier} />
-                <View style={styles.matchCopy}>
-                  <Typography fixed size={15} fFamily="interSemiBold600" color={COLORS.foreground} numberOfLines={1}>
-                    {p.name}
-                  </Typography>
-                  <Typography fixed size={13} color={COLORS.body} numberOfLines={1}>
-                    {p.headline}
-                  </Typography>
+        {membersLoading ? (
+          <ActivityIndicator color={COLORS.primary} style={styles.loader} />
+        ) : members.length === 0 ? (
+          <View style={styles.emptyMatch}>
+            <Typography fixed size={13} color={COLORS.mute}>
+              No members available yet.
+            </Typography>
+            <Button label="Refresh" onPress={() => refetchMembers()} mt={12} />
+          </View>
+        ) : (
+          members.map(p => {
+            const label = connectionCtaLabel(p.connection);
+            const pendingOrConnected =
+              p.connection?.status === 'pending' ||
+              p.connection?.status === 'accepted';
+            return (
+              <View key={p.id} style={styles.feedCard}>
+                <View style={styles.matchInner}>
+                  <Avatar src={p.avatar} size={56} tier={p.tier} />
+                  <View style={styles.matchCopy}>
+                    <Typography
+                      fixed
+                      size={15}
+                      fFamily="interSemiBold600"
+                      color={COLORS.foreground}
+                      numberOfLines={1}>
+                      {p.name}
+                    </Typography>
+                    <Typography
+                      fixed
+                      size={13}
+                      color={COLORS.body}
+                      numberOfLines={1}>
+                      {p.headline || p.location || 'Professional'}
+                    </Typography>
+                  </View>
+                </View>
+                <View style={styles.ctaRow}>
+                  <View style={styles.ctaCol}>
+                    <Button
+                      type="outline"
+                      label="View Profile"
+                      onPress={() => openProfile(p.id)}
+                    />
+                  </View>
+                  <View style={styles.ctaCol}>
+                    <Button
+                      label={label === 'Connect' ? 'Send request' : label}
+                      disabled={pendingOrConnected}
+                      onPress={() => onConnectPress(p)}
+                    />
+                  </View>
                 </View>
               </View>
-              <View style={styles.ctaRow}>
-                <View style={styles.ctaCol}>
-                  <Button
-                    type="outline"
-                    label="View Profile"
-                    onPress={() => navigation.getParent()?.navigate('ProfileScreen', { id: p.id })}
-                  />
-                </View>
-                <View style={styles.ctaCol}>
-                  {isPending ? (
-                    <Button type="outline" label="Pending" disabled />
-                  ) : (
-                    <Button label="Send request" onPress={() => openRequest(p)} />
-                  )}
-                </View>
-              </View>
-            </View>
-          );
-        })}
+            );
+          })
+        )}
       </ScrollView>
-
-      <Modal visible={!!requestFor} transparent animationType="fade" onRequestClose={closeRequest}>
-        <Pressable style={styles.backdrop} onPress={closeRequest}>
-          <Pressable style={styles.sheet} onPress={e => e.stopPropagation()}>
-            <View style={styles.handle} />
-            <Overline>Send request</Overline>
-            <Typography fixed size={18} fFamily="spaceGroteskBold700" color={COLORS.foreground} mT={4}>
-              Connect with {requestFor?.name?.split(' ')[0]}
-            </Typography>
-            <Typography fixed size={13} color={COLORS.body} mT={4}>
-              {requestFor?.headline}
-            </Typography>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder="Introduce yourself or share why you'd like to connect"
-              placeholderTextColor={COLORS.mute}
-              multiline
-              style={styles.note}
-            />
-            <View style={styles.ctaRow}>
-              <View style={styles.ctaCol}>
-                <Button type="ghost" label="Cancel" onPress={closeRequest} textColor={COLORS.mute} />
-              </View>
-              <View style={styles.ctaCol}>
-                <Button label="Send request" onPress={sendRequest} />
-              </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaWrapper>
   );
 };
@@ -208,15 +275,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   bell: { position: 'relative' },
-  dot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.destructive,
-  },
   scroll: { paddingBottom: 32 },
   sectionHead: {
     paddingHorizontal: 20,
@@ -233,6 +291,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   track: { letterSpacing: 0.88 },
+  loader: { marginVertical: 20 },
+  emptyMatch: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+  },
   carousel: {
     paddingHorizontal: 20,
     gap: 12,
@@ -272,37 +340,4 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   ctaCol: { flex: 1 },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: COLORS.elevated,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    padding: 20,
-  },
-  handle: {
-    width: 48,
-    height: 4,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.border,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  note: {
-    marginTop: 16,
-    minHeight: 112,
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
-    padding: 12,
-    color: COLORS.foreground,
-    fontSize: 14,
-    textAlignVertical: 'top',
-  },
 });
