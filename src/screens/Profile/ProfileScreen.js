@@ -18,6 +18,7 @@ import {
   Chip,
   ConnectRequestModal,
   Icon,
+  ReportMemberModal,
   SectionLabel,
   VerifiedBadge,
 } from '../../components/slife';
@@ -40,6 +41,7 @@ import { showMessage } from '../../utils';
 const ProfileScreen = ({ navigation, route }) => {
   const memberId = route.params?.id;
   const [showConnect, setShowConnect] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = useCustomQuery({
     queryKey: ['member', memberId],
@@ -214,6 +216,21 @@ const ProfileScreen = ({ navigation, route }) => {
               style={[styles.iconBtn, styles.leftBtn]}
               hitSlop={8}>
               <Icon.ArrowLeft size={20} color={COLORS.foreground} />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                Alert.alert(person.name, undefined, [
+                  {
+                    text: 'Report member',
+                    style: 'destructive',
+                    onPress: () => setShowReport(true),
+                  },
+                  { text: 'Cancel', style: 'cancel' },
+                ])
+              }
+              style={[styles.iconBtn, styles.rightBtn]}
+              hitSlop={8}>
+              <Icon.DotsV size={20} color={COLORS.foreground} />
             </Pressable>
           </View>
           <View style={styles.avatarWrap}>
@@ -401,6 +418,11 @@ const ProfileScreen = ({ navigation, route }) => {
         target={person}
         onClose={() => setShowConnect(false)}
       />
+      <ReportMemberModal
+        visible={showReport}
+        target={person}
+        onClose={() => setShowReport(false)}
+      />
     </SafeAreaWrapper>
   );
 };
@@ -442,6 +464,7 @@ const styles = StyleSheet.create({
     }),
   },
   leftBtn: { left: 20 },
+  rightBtn: { right: 20 },
   avatarWrap: {
     paddingHorizontal: 20,
     marginTop: -48,

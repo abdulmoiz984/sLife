@@ -40,4 +40,8 @@ export const ENDPOINTS = {
   CONNECTION_DECLINE: id => `connections/${id}/decline`,
   CONNECTION_CANCEL: id => `connections/${id}/cancel`,
   CONNECTION: id => `connections/${id}`,
+
+  // --- Reports (Module F) ---
+  REPORT_REASONS: 'reports/reasons',
+  REPORTS: 'reports',
 };

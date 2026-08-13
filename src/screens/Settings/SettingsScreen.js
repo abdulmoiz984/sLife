@@ -36,7 +36,10 @@ const SECTIONS = [
   },
   {
     label: 'Support',
-    items: [{ label: 'Help & Support' }, { label: 'Report a Problem' }],
+    items: [
+      { label: 'Help & Support' },
+      { label: 'Report a member', action: 'report_hint' },
+    ],
   },
   {
     label: '',
@@ -70,6 +73,14 @@ const SettingsScreen = ({ navigation }) => {
   const onItem = item => {
     if (item.action === 'logout') {
       performLogout();
+      return;
+    }
+    if (item.action === 'report_hint') {
+      showMessage({
+        type: 'default',
+        title: 'Report a member',
+        message: 'Open any member profile and tap ⋮ → Report member.',
+      });
       return;
     }
     if (!item.to) return;

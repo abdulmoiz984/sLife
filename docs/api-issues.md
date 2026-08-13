@@ -119,6 +119,15 @@ No unexpected Module D blockers. Empty matches for QA account is data/profile co
 
 Accept / decline not exercised end-to-end (needs a second account as recipient). No unexpected blockers in create/list/cancel probes.
 
+### Module F — Reports
+
+| Endpoint | Result |
+|----------|--------|
+| `GET /reports/reasons` | `200` — full reason list matches doc |
+| `POST /reports` | `201` — report created |
+
+No Module F blockers found in live probes. Duplicate-report `422` behaves per doc when re-reporting the same member.
+
 ---
 
 ## Test account (mobile QA)

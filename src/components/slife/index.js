@@ -10,6 +10,7 @@ import FullProfileView from './FullProfileView';
 import ShimmerBlock from './ShimmerBlock';
 import EducationsEditor from './EducationsEditor';
 import ConnectRequestModal from './ConnectRequestModal';
+import ReportMemberModal from './ReportMemberModal';
 
 export {
   Icon,
@@ -24,4 +25,5 @@ export {
   ShimmerBlock,
   EducationsEditor,
   ConnectRequestModal,
+  ReportMemberModal,
 };
