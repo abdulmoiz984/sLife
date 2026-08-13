@@ -9,6 +9,7 @@ import UploadTile from './UploadTile';
 import FullProfileView from './FullProfileView';
 import ShimmerBlock from './ShimmerBlock';
 import EducationsEditor from './EducationsEditor';
+import ConnectRequestModal from './ConnectRequestModal';
 
 export {
   Icon,
@@ -22,4 +23,5 @@ export {
   FullProfileView,
   ShimmerBlock,
   EducationsEditor,
+  ConnectRequestModal,
 };

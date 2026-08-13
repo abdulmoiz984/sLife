@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -9,7 +9,12 @@ import {
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, AppLogo } from '../../components';
-import { Avatar, Icon, Overline } from '../../components/slife';
+import {
+  Avatar,
+  ConnectRequestModal,
+  Icon,
+  Overline,
+} from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { getMemberMatches, getMembers } from '../../api/memberService';
@@ -20,6 +25,7 @@ import {
 import { showMessage } from '../../utils';
 
 const HomeScreen = ({ navigation }) => {
+  const [requestFor, setRequestFor] = useState(null);
   const {
     data: matchesRes,
     isLoading: matchesLoading,
@@ -59,7 +65,6 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const onConnectPress = person => {
-    // Module E will wire POST /connections — open profile for now
     if (person.connection?.status === 'pending') {
       showMessage({ type: 'default', message: 'Connection request pending.' });
       return;
@@ -68,7 +73,7 @@ const HomeScreen = ({ navigation }) => {
       openProfile(person.id);
       return;
     }
-    openProfile(person.id);
+    setRequestFor(person);
   };
 
   return (
@@ -248,6 +253,12 @@ const HomeScreen = ({ navigation }) => {
           })
         )}
       </ScrollView>
+
+      <ConnectRequestModal
+        visible={!!requestFor}
+        target={requestFor}
+        onClose={() => setRequestFor(null)}
+      />
     </SafeAreaWrapper>
   );
 };

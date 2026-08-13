@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Image,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 //------------------
@@ -15,6 +16,7 @@ import { Button } from '../../components';
 import {
   Avatar,
   Chip,
+  ConnectRequestModal,
   Icon,
   SectionLabel,
   VerifiedBadge,
@@ -22,15 +24,22 @@ import {
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { onboardBoardroom } from '../../assets/images';
 import { useCustomQuery } from '../../query/useCustomQuery';
+import { useCustomMutation } from '../../query/useCustomMutation';
 import { getMember } from '../../api/memberService';
+import {
+  cancelConnection,
+  removeConnection,
+} from '../../api/connectionService';
 import {
   connectionCtaLabel,
   mapMemberDetail,
 } from '../../helpers/memberMapper';
+import { invalidateConnectionQueries } from '../../helpers/connectionHelpers';
 import { showMessage } from '../../utils';
 
 const ProfileScreen = ({ navigation, route }) => {
   const memberId = route.params?.id;
+  const [showConnect, setShowConnect] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = useCustomQuery({
     queryKey: ['member', memberId],
@@ -43,9 +52,84 @@ const ProfileScreen = ({ navigation, route }) => {
     [data?.member],
   );
 
-  const cta = connectionCtaLabel(person?.connection);
-  const connected = person?.connection?.status === 'accepted';
-  const pending = person?.connection?.status === 'pending';
+  const connection = person?.connection;
+  const cta = connectionCtaLabel(connection);
+  const connected = connection?.status === 'accepted';
+  const pending = connection?.status === 'pending';
+  const outgoingPending =
+    pending && connection?.direction === 'outgoing';
+
+  const { mutateAsync: cancelReq, isPending: cancelling } = useCustomMutation({
+    mutationFn: cancelConnection,
+  });
+  const { mutateAsync: disconnect, isPending: removing } = useCustomMutation({
+    mutationFn: removeConnection,
+  });
+
+  const onPrimaryCta = () => {
+    if (connected && connection?.id) {
+      Alert.alert(
+        'Remove connection',
+        `Disconnect from ${person.name}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const res = await disconnect(connection.id);
+                showMessage({
+                  type: 'success',
+                  message: res?.message || 'Connection removed.',
+                });
+                await invalidateConnectionQueries(memberId);
+              } catch (err) {
+                showMessage({
+                  type: 'danger',
+                  message:
+                    err?.response?.data?.message ||
+                    'Could not remove connection.',
+                });
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+    if (outgoingPending && connection?.id) {
+      Alert.alert('Withdraw request', 'Cancel this connection request?', [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await cancelReq(connection.id);
+              showMessage({
+                type: 'success',
+                message: res?.message || 'Request cancelled.',
+              });
+              await invalidateConnectionQueries(memberId);
+            } catch (err) {
+              showMessage({
+                type: 'danger',
+                message:
+                  err?.response?.data?.message || 'Could not cancel request.',
+              });
+            }
+          },
+        },
+      ]);
+      return;
+    }
+    if (pending && connection?.direction === 'incoming') {
+      navigation.navigate('RequestsScreen');
+      return;
+    }
+    setShowConnect(true);
+  };
 
   if (!memberId) {
     return (
@@ -189,15 +273,16 @@ const ProfileScreen = ({ navigation, route }) => {
           <View style={styles.ctaRow}>
             <View style={styles.col}>
               <Button
-                label={cta}
-                disabled={connected || pending}
-                onPress={() => {
-                  showMessage({
-                    type: 'default',
-                    message:
-                      'Connection actions will be available in the next module.',
-                  });
-                }}
+                label={
+                  connected
+                    ? 'Disconnect'
+                    : outgoingPending
+                      ? 'Withdraw'
+                      : cta
+                }
+                type={connected || outgoingPending ? 'outline' : 'primary'}
+                loader={cancelling || removing}
+                onPress={onPrimaryCta}
               />
             </View>
             <View style={styles.col}>
@@ -310,6 +395,12 @@ const ProfileScreen = ({ navigation, route }) => {
           </View>
         )}
       </ScrollView>
+
+      <ConnectRequestModal
+        visible={showConnect}
+        target={person}
+        onClose={() => setShowConnect(false)}
+      />
     </SafeAreaWrapper>
   );
 };

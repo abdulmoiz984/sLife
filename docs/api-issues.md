@@ -109,6 +109,16 @@ No Module C blockers found in live probes (2026-08-13).
 
 No unexpected Module D blockers. Empty matches for QA account is data/profile completeness, not an API defect.
 
+### Module E — Connections
+
+| Endpoint | Result |
+|----------|--------|
+| `GET /connections?filter=accepted` | `200` |
+| `POST /connections` | `201` — request created (`pending` / `outgoing`) |
+| `POST /connections/{id}/cancel` | `200` — cancelled |
+
+Accept / decline not exercised end-to-end (needs a second account as recipient). No unexpected blockers in create/list/cancel probes.
+
 ---
 
 ## Test account (mobile QA)

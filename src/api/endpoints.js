@@ -33,4 +33,11 @@ export const ENDPOINTS = {
   MEMBERS: 'members',
   MEMBERS_MATCHES: 'members/matches',
   MEMBER: userId => `members/${userId}`,
+
+  // --- Connections (Module E) ---
+  CONNECTIONS: 'connections',
+  CONNECTION_ACCEPT: id => `connections/${id}/accept`,
+  CONNECTION_DECLINE: id => `connections/${id}/decline`,
+  CONNECTION_CANCEL: id => `connections/${id}/cancel`,
+  CONNECTION: id => `connections/${id}`,
 };

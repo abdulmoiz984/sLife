@@ -9,7 +9,13 @@ import {
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField } from '../../components';
-import { Avatar, Chip, Icon, TopBar } from '../../components/slife';
+import {
+  Avatar,
+  Chip,
+  ConnectRequestModal,
+  Icon,
+  TopBar,
+} from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { getMembers } from '../../api/memberService';
@@ -23,6 +29,7 @@ const DiscoverScreen = ({ navigation, route }) => {
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [view, setView] = useState('list');
+  const [requestFor, setRequestFor] = useState(null);
   const routeFilters = route?.params?.filters || {};
 
   useEffect(() => {
@@ -81,6 +88,15 @@ const DiscoverScreen = ({ navigation, route }) => {
   };
 
   const connectLabel = person => connectionCtaLabel(person.connection);
+
+  const onConnectPress = person => {
+    const status = person.connection?.status;
+    if (status === 'pending' || status === 'accepted') {
+      openProfile(person.id);
+      return;
+    }
+    setRequestFor(person);
+  };
 
   return (
     <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
@@ -212,7 +228,7 @@ const DiscoverScreen = ({ navigation, route }) => {
                       p.connection?.status === 'accepted' ||
                       p.connection?.status === 'pending'
                     }
-                    onPress={() => openProfile(p.id)}
+                    onPress={() => onConnectPress(p)}
                   />
                 </View>
               </View>
@@ -255,6 +271,12 @@ const DiscoverScreen = ({ navigation, route }) => {
             </View>
           )}
       </ScrollView>
+
+      <ConnectRequestModal
+        visible={!!requestFor}
+        target={requestFor}
+        onClose={() => setRequestFor(null)}
+      />
     </SafeAreaWrapper>
   );
 };
