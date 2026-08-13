@@ -13,4 +13,14 @@ export const ENDPOINTS = {
   LOGOUT: 'logout',
   FORGOT_PASSWORD: 'forgot-password',
   RESET_PASSWORD: 'reset-password',
+
+  // --- Profile & onboarding (Module B) ---
+  PROFILE_OPTIONS: 'profile/options',
+  GET_PROFILE: 'profile',
+  PROFILE_BASIC_INFO: 'profile/basic-info',
+  PROFILE_PROFESSIONAL_INFO: 'profile/professional-info',
+  PROFILE_ORGANIZATION: 'profile/organization',
+  PROFILE_VERIFICATION_DOCUMENTS: 'profile/verification-documents',
+  PROFILE_BIO_INTERESTS: 'profile/bio-interests',
+  PROFILE_NETWORKING_GOALS: 'profile/networking-goals',
 };

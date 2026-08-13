@@ -6,6 +6,7 @@ import { KEYS } from '../../constants';
 const initialState = {
   user: null,
   isLogged: false,
+  profile: null,
 };
 
 const appSlice = createSlice({
@@ -16,6 +17,9 @@ const appSlice = createSlice({
       state.user = action.payload;
       state.isLogged = true;
     },
+    setProfile: (state, action) => {
+      state.profile = action.payload;
+    },
     handleLogout: state => {
       storage.delete(KEYS.CREDENTIALS);
       storage.delete(KEYS.ACCESS_TOKEN);
@@ -23,10 +27,11 @@ const appSlice = createSlice({
       storage.delete(KEYS.LOGIN_TYPE);
 
       state.user = null;
+      state.profile = null;
       state.isLogged = false;
     },
   },
 });
 
-export const { setUser, handleLogout } = appSlice.actions;
+export const { setUser, setProfile, handleLogout } = appSlice.actions;
 export default appSlice.reducer;

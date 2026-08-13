@@ -1,10 +1,34 @@
-import React, { useMemo, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+//------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField, AppLogo, RegisterProgressBar } from '../../components';
 import { Icon, Chip, Overline, UploadTile } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import { goals, industries, interests, professionalRoles } from '../../constants/mockData';
+import { useCustomQuery } from '../../query/useCustomQuery';
+import { useCustomMutation } from '../../query/useCustomMutation';
+import {
+  getProfile,
+  getProfileOptions,
+  updateBasicInfo,
+  updateProfessionalInfo,
+  updateOrganization,
+  updateVerificationDocuments,
+  updateBioInterests,
+  updateNetworkingGoals,
+} from '../../api/profileService';
+import { setProfile, setUser } from '../../redux/slices/appSlice';
+import { formatBackendErrors, showMessage } from '../../utils';
+import { pickUploadAsset } from '../../helpers/pickMedia';
+import { getMe } from '../../api/authService';
 
 const STEPS = [
   'Basic Information',
@@ -15,49 +39,320 @@ const STEPS = [
   'Networking Goals',
 ];
 
-const DOCS = [
-  { key: 'linkedin', label: 'LinkedIn or portfolio URL', req: true },
-  { key: 'resume', label: 'Resume / CV' },
-  { key: 'license', label: 'Professional license (if applicable)' },
-  { key: 'degree', label: 'Educational credential' },
-  { key: 'id', label: 'Government ID (Optional)' },
-];
+const emptyOptions = {
+  industries: [],
+  professional_roles: [],
+  organization_sizes: [],
+  interests: [],
+  networking_goals: [],
+  verification_document_types: [],
+};
 
 const VerifyScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const reduxUser = useSelector(state => state.app.user);
+
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
-  const [f, setF] = useState({});
-  const [selectedIndustries, setSelectedIndustries] = useState([]);
-  const [roleType, setRoleType] = useState('');
-  const [companySize, setCompanySize] = useState('');
+  const [hydrated, setHydrated] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [fullName, setFullName] = useState(reduxUser?.full_name || '');
+  const [phone, setPhone] = useState('');
+  const [location, setLocation] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
+
+  const [title, setTitle] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [years, setYears] = useState('');
+  const [role, setRole] = useState('');
+
+  const [company, setCompany] = useState('');
+  const [orgSize, setOrgSize] = useState('');
+  const [website, setWebsite] = useState('');
+
+  const [linkedin, setLinkedin] = useState('');
+  const [docFiles, setDocFiles] = useState({});
+
+  const [bio, setBio] = useState('');
   const [selectedInterests, setSelectedInterests] = useState([]);
   const [selectedGoals, setSelectedGoals] = useState([]);
-  const [docs, setDocs] = useState({});
 
-  const set = (k, v) => setF(s => ({ ...s, [k]: v }));
+  const {
+    data: optionsRes,
+    isLoading: optionsLoading,
+    isError: optionsError,
+  } = useCustomQuery({
+    queryKey: ['profileOptions'],
+    queryFn: getProfileOptions,
+  });
 
-  const toggle = (arr, setArr, v) => {
-    setArr(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
+  const { data: profileRes, isLoading: profileLoading } = useCustomQuery({
+    queryKey: ['profile'],
+    queryFn: getProfile,
+  });
+
+  const options = optionsRes?.options || emptyOptions;
+
+  const applyProfile = profile => {
+    if (!profile) return;
+    dispatch(setProfile(profile));
+
+    const b = profile.basic_info || {};
+    setFullName(b.full_name || reduxUser?.full_name || '');
+    setPhone(b.phone_number || '');
+    setLocation(b.location || '');
+    setPhotoUrl(b.profile_photo_url || null);
+
+    const p = profile.professional_info || {};
+    setTitle(p.professional_title || '');
+    setIndustry(p.industry || '');
+    setYears(
+      p.years_of_experience != null ? String(p.years_of_experience) : '',
+    );
+    setRole(p.professional_role || '');
+
+    const o = profile.organization || {};
+    setCompany(o.company_name || '');
+    setOrgSize(o.organization_size || '');
+    setWebsite(o.website || '');
+
+    const v = profile.verification || {};
+    setLinkedin(v.linkedin_or_portfolio_url || '');
+
+    const bi = profile.bio_interests || {};
+    setBio(bi.bio || '');
+    setSelectedInterests(
+      (bi.interests || []).map(i => (typeof i === 'string' ? i : i.value)),
+    );
+    setSelectedGoals(
+      (profile.networking_goals || []).map(g =>
+        typeof g === 'string' ? g : g.value,
+      ),
+    );
+
+    const nextStep = Math.min(Number(profile.onboarding_step) || 0, 5);
+    if (profile.profile_completed || profile.verification_submitted_at) {
+      setSubmitted(true);
+    } else {
+      setStep(nextStep);
+    }
   };
+
+  useEffect(() => {
+    if (hydrated || !profileRes?.success || !profileRes?.profile) return;
+    applyProfile(profileRes.profile);
+    setHydrated(true);
+  }, [profileRes, hydrated]);
+
+  const toggleValue = (arr, setArr, value) => {
+    setArr(arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value]);
+  };
+
+  const optionsReadyForStep = useMemo(() => {
+    switch (step) {
+      case 1:
+        return (
+          options.industries.length > 0 &&
+          options.professional_roles.length > 0
+        );
+      case 2:
+        return true;
+      case 4:
+        return options.interests.length > 0;
+      case 5:
+        return options.networking_goals.length > 0;
+      default:
+        return true;
+    }
+  }, [step, options]);
 
   const canContinue = useMemo(() => {
     switch (step) {
       case 0:
-        return !!(f.name && f.phone && f.location);
+        return !!(fullName.trim() && phone.trim() && location.trim());
       case 1:
-        return !!(f.title && selectedIndustries.length && f.years && roleType);
+        return !!(
+          title.trim() &&
+          industry &&
+          years !== '' &&
+          !Number.isNaN(Number(years)) &&
+          role
+        );
       case 2:
         return true;
       case 3:
-        return Object.values(docs).filter(Boolean).length >= 1;
+        return !!linkedin.trim();
       case 4:
-        return !!f.bio && selectedInterests.length >= 2;
+        return selectedInterests.length >= 2;
       case 5:
         return selectedGoals.length >= 1;
       default:
         return false;
     }
-  }, [step, f, selectedIndustries, roleType, docs, selectedInterests, selectedGoals]);
+  }, [
+    step,
+    fullName,
+    phone,
+    location,
+    title,
+    industry,
+    years,
+    role,
+    linkedin,
+    selectedInterests,
+    selectedGoals,
+  ]);
+
+  const handleApiError = err => {
+    const response = err?.response;
+    const parsed = formatBackendErrors(response?.data?.errors);
+    const firstFieldError = Object.values(parsed)[0];
+    showMessage({
+      type: 'danger',
+      message:
+        firstFieldError ||
+        response?.data?.message ||
+        'Could not save this step. Please try again.',
+    });
+  };
+
+  const afterStepSuccess = async (response, nextStepIndex, { finish } = {}) => {
+    if (response?.profile) {
+      dispatch(setProfile(response.profile));
+    }
+    showMessage({
+      type: 'success',
+      message: response?.message || 'Saved.',
+    });
+
+    if (finish) {
+      try {
+        const me = await getMe();
+        if (me?.user) dispatch(setUser(me.user));
+      } catch (_) {
+        // non-blocking
+      }
+      setSubmitted(true);
+      return;
+    }
+
+    setStep(nextStepIndex);
+  };
+
+  const { mutateAsync: saveBasic } = useCustomMutation({
+    mutationFn: updateBasicInfo,
+  });
+  const { mutateAsync: saveProfessional } = useCustomMutation({
+    mutationFn: updateProfessionalInfo,
+  });
+  const { mutateAsync: saveOrganization } = useCustomMutation({
+    mutationFn: updateOrganization,
+  });
+  const { mutateAsync: saveVerification } = useCustomMutation({
+    mutationFn: updateVerificationDocuments,
+  });
+  const { mutateAsync: saveBio } = useCustomMutation({
+    mutationFn: updateBioInterests,
+  });
+  const { mutateAsync: saveGoals } = useCustomMutation({
+    mutationFn: updateNetworkingGoals,
+  });
+
+  const pickPhoto = async () => {
+    const asset = await pickUploadAsset({ mediaType: 'photo' });
+    if (asset) {
+      setPhoto(asset);
+      setPhotoUrl(asset.uri);
+    }
+  };
+
+  const pickDoc = async docValue => {
+    const asset = await pickUploadAsset({ mediaType: 'mixed' });
+    if (asset) {
+      setDocFiles(prev => ({ ...prev, [docValue]: asset }));
+    }
+  };
+
+  const submitStep = async () => {
+    if (saving) return;
+    if (!optionsReadyForStep) {
+      showMessage({
+        type: 'danger',
+        message:
+          'Profile options are not available from the server yet. Please try again later.',
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (step === 0) {
+        const body = {
+          full_name: fullName.trim(),
+          phone_number: phone.trim(),
+          location: location.trim(),
+        };
+        if (photo) body.profile_photo = photo;
+        const res = await saveBasic(body);
+        await afterStepSuccess(res, 1);
+      } else if (step === 1) {
+        const res = await saveProfessional({
+          professional_title: title.trim(),
+          industry,
+          years_of_experience: Number(years),
+          professional_role: role,
+        });
+        await afterStepSuccess(res, 2);
+      } else if (step === 2) {
+        const res = await saveOrganization({
+          company_name: company.trim(),
+          organization_size: orgSize || undefined,
+          website: website.trim() || undefined,
+        });
+        await afterStepSuccess(res, 3);
+      } else if (step === 3) {
+        const body = {
+          linkedin_or_portfolio_url: linkedin.trim(),
+          ...docFiles,
+        };
+        const res = await saveVerification(body);
+        await afterStepSuccess(res, 4);
+      } else if (step === 4) {
+        const res = await saveBio({
+          bio: bio.trim(),
+          interests: selectedInterests,
+        });
+        await afterStepSuccess(res, 5);
+      } else if (step === 5) {
+        const res = await saveGoals({
+          networking_goals: selectedGoals,
+          submit_for_verification: true,
+        });
+        await afterStepSuccess(res, 5, { finish: true });
+      }
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const skipOrganization = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await saveOrganization({});
+      await afterStepSuccess(res, 3);
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const bootLoading = optionsLoading || profileLoading;
 
   if (submitted) {
     return (
@@ -84,8 +379,8 @@ const VerifyScreen = ({ navigation }) => {
             mT={16}
             LineHeight={20}
             style={styles.successBody}>
-            Our verification team typically completes review within 24–48 hours. You will be
-            notified as soon as your membership is approved.
+            Our verification team typically completes review within 24–48 hours.
+            You will be notified as soon as your membership is approved.
           </Typography>
           <View style={styles.successBtns}>
             <Button
@@ -121,220 +416,322 @@ const VerifyScreen = ({ navigation }) => {
         <Overline style={styles.stepKicker}>
           Step {step + 1} of {STEPS.length}
         </Overline>
-        <Typography fixed size={22} fFamily="spaceGroteskBold700" color={COLORS.foreground} mT={4}>
+        <Typography
+          fixed
+          size={22}
+          fFamily="spaceGroteskBold700"
+          color={COLORS.foreground}
+          mT={4}>
           {STEPS[step]}
         </Typography>
         <Typography fixed size={13} color={COLORS.body} mT={8}>
-          For every professional — developers, designers, doctors, lawyers, students, freelancers,
-          and more.
+          For every professional — developers, designers, doctors, lawyers,
+          students, freelancers, and more.
         </Typography>
       </View>
 
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.body}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        {step === 0 && (
-          <>
-            <View style={styles.photoWrap}>
-              <View style={styles.photoBtn}>
-                <Icon.Camera size={24} color={COLORS.primary} />
-                <Typography
-                  fixed
-                  size={10}
-                  fFamily="interSemiBold600"
-                  color={COLORS.primary}
-                  textTransform="uppercase"
-                  mT={4}
-                  style={styles.track}>
-                  Add photo
-                </Typography>
-              </View>
+      {bootLoading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Typography fixed size={13} color={COLORS.body} mT={12}>
+            Loading profile…
+          </Typography>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          {(optionsError ||
+            (step !== 0 &&
+              step !== 3 &&
+              !optionsReadyForStep &&
+              step !== 2)) && (
+            <View style={styles.warnBox}>
+              <Typography fixed size={13} color={COLORS.destructive} LineHeight={18}>
+                Server returned empty profile options for this step. Dropdowns
+                cannot be filled until the backend seeds industries, roles,
+                interests, and goals. See docs/api-issues.md.
+              </Typography>
             </View>
-            <TextField label="Full name" placeholder="Jordan Everly" value={f.name} onChangeText={v => set('name', v)} autoCapitalize="words" />
-            <TextField label="Phone" placeholder="+1 (555) 000-0000" value={f.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" />
-            <TextField label="Location" placeholder="City, State, Country" value={f.location} onChangeText={v => set('location', v)} autoCapitalize="words" />
-          </>
-        )}
+          )}
 
-        {step === 1 && (
-          <>
-            <TextField
-              label="Professional title / headline"
-              placeholder="e.g. Web Developer, UI/UX Designer, Physician, Student"
-              value={f.title}
-              onChangeText={v => set('title', v)}
-            />
-            <Typography
-              fixed
-              size={11}
-              fFamily="interSemiBold600"
-              color={COLORS.mute}
-              textTransform="uppercase"
-              mB={8}
-              style={styles.track}>
-              Industry
-            </Typography>
-            <View style={styles.chips}>
-              {industries.map(i => (
-                <Chip
-                  key={i}
-                  label={i}
-                  active={selectedIndustries.includes(i)}
-                  onPress={() => toggle(selectedIndustries, setSelectedIndustries, i)}
-                />
-              ))}
-            </View>
-            <TextField
-              label="Years of experience"
-              placeholder="5"
-              value={f.years}
-              onChangeText={v => set('years', v)}
-              keyboardType="number-pad"
-            />
-            <Typography
-              fixed
-              size={11}
-              fFamily="interSemiBold600"
-              color={COLORS.mute}
-              textTransform="uppercase"
-              mB={8}
-              style={styles.track}>
-              Professional role
-            </Typography>
-            <View style={styles.chips}>
-              {professionalRoles.map(l => (
-                <Chip key={l} label={l} active={roleType === l} onPress={() => setRoleType(l)} />
-              ))}
-            </View>
-          </>
-        )}
+          {step === 0 && (
+            <>
+              <Pressable onPress={pickPhoto} style={styles.photoWrap}>
+                {photoUrl ? (
+                  <Image source={{ uri: photoUrl }} style={styles.photoImg} />
+                ) : (
+                  <View style={styles.photoBtn}>
+                    <Icon.Camera size={24} color={COLORS.primary} />
+                    <Typography
+                      fixed
+                      size={10}
+                      fFamily="interSemiBold600"
+                      color={COLORS.primary}
+                      textTransform="uppercase"
+                      mT={4}
+                      style={styles.track}>
+                      Add photo
+                    </Typography>
+                  </View>
+                )}
+              </Pressable>
+              <TextField
+                label="Full name"
+                placeholder="Jordan Everly"
+                value={fullName}
+                onChangeText={setFullName}
+                autoCapitalize="words"
+              />
+              <TextField
+                label="Phone"
+                placeholder="+1 (555) 000-0000"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+              <TextField
+                label="Location"
+                placeholder="City, State, Country"
+                value={location}
+                onChangeText={setLocation}
+                autoCapitalize="words"
+              />
+            </>
+          )}
 
-        {step === 2 && (
-          <>
-            <Typography fixed size={13} color={COLORS.body} mB={16} LineHeight={20}>
-              Optional — add your company, clinic, firm, school, or leave blank if you are a student
-              or freelancer.
-            </Typography>
-            <TextField
-              label="Company / organization"
-              placeholder="Company, clinic, firm, school, or Freelance"
-              value={f.company}
-              onChangeText={v => set('company', v)}
-            />
-            <Typography
-              fixed
-              size={11}
-              fFamily="interSemiBold600"
-              color={COLORS.mute}
-              textTransform="uppercase"
-              mB={8}
-              style={styles.track}>
-              Organization size
-            </Typography>
-            <View style={styles.chips}>
-              {['Just me', '1–10', '11–50', '51–200', '201–1k', '1k+'].map(s => (
-                <Chip key={s} label={s} active={companySize === s} onPress={() => setCompanySize(s)} />
-              ))}
-            </View>
-            <TextField label="Website" placeholder="https://" />
-            <Pressable onPress={() => setStep(step + 1)} style={styles.skip}>
+          {step === 1 && (
+            <>
+              <TextField
+                label="Professional title / headline"
+                placeholder="e.g. Web Developer, UI/UX Designer, Physician"
+                value={title}
+                onChangeText={setTitle}
+              />
               <Typography
                 fixed
-                size={12}
+                size={11}
                 fFamily="interSemiBold600"
                 color={COLORS.mute}
                 textTransform="uppercase"
+                mB={8}
                 style={styles.track}>
-                Skip for now
+                Industry
               </Typography>
-            </Pressable>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <Typography fixed size={13} color={COLORS.body} mB={16} LineHeight={20}>
-              Upload any documents that help verify your professional identity. Requirements vary by
-              profession.
-            </Typography>
-            {DOCS.map(d => (
-              <UploadTile
-                key={d.key}
-                label={d.label}
-                required={d.req}
-                done={!!docs[d.key]}
-                onToggle={() => setDocs(x => ({ ...x, [d.key]: !x[d.key] }))}
+              <View style={styles.chips}>
+                {options.industries.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={industry === item.value}
+                    onPress={() => setIndustry(item.value)}
+                  />
+                ))}
+              </View>
+              <TextField
+                label="Years of experience"
+                placeholder="5"
+                value={years}
+                onChangeText={setYears}
+                keyboardType="number-pad"
               />
-            ))}
-          </>
-        )}
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.mute}
+                textTransform="uppercase"
+                mB={8}
+                style={styles.track}>
+                Professional role
+              </Typography>
+              <View style={styles.chips}>
+                {options.professional_roles.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={role === item.value}
+                    onPress={() => setRole(item.value)}
+                  />
+                ))}
+              </View>
+            </>
+          )}
 
-        {step === 4 && (
-          <>
-            <TextField
-              label="Professional bio"
-              placeholder="A short summary of who you are and what you do — any profession welcome."
-              value={f.bio}
-              onChangeText={v => set('bio', v)}
-              multiline
-              maxLength={500}
-            />
-            <Typography fixed size={11} color={COLORS.mute} mB={16}>
-              {(f.bio ?? '').length}/500
-            </Typography>
-            <Typography
-              fixed
-              size={11}
-              fFamily="interSemiBold600"
-              color={COLORS.mute}
-              textTransform="uppercase"
-              mB={8}
-              style={styles.track}>
-              Professional interests — select at least 2
-            </Typography>
-            <View style={styles.chips}>
-              {interests.map(i => (
-                <Chip
-                  key={i}
-                  label={i}
-                  active={selectedInterests.includes(i)}
-                  onPress={() => toggle(selectedInterests, setSelectedInterests, i)}
+          {step === 2 && (
+            <>
+              <Typography fixed size={13} color={COLORS.body} mB={16} LineHeight={20}>
+                Optional — add your company, clinic, firm, school, or leave blank
+                if you are a student or freelancer.
+              </Typography>
+              <TextField
+                label="Company / organization"
+                placeholder="Company, clinic, firm, school, or Freelance"
+                value={company}
+                onChangeText={setCompany}
+              />
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.mute}
+                textTransform="uppercase"
+                mB={8}
+                style={styles.track}>
+                Organization size
+              </Typography>
+              <View style={styles.chips}>
+                {options.organization_sizes.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={orgSize === item.value}
+                    onPress={() => setOrgSize(item.value)}
+                  />
+                ))}
+              </View>
+              <TextField
+                label="Website"
+                placeholder="https://"
+                value={website}
+                onChangeText={setWebsite}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+              <Pressable onPress={skipOrganization} style={styles.skip}>
+                <Typography
+                  fixed
+                  size={12}
+                  fFamily="interSemiBold600"
+                  color={COLORS.mute}
+                  textTransform="uppercase"
+                  style={styles.track}>
+                  Skip for now
+                </Typography>
+              </Pressable>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <Typography fixed size={13} color={COLORS.body} mB={16} LineHeight={20}>
+                Add a LinkedIn or portfolio URL. Optional documents help verify
+                your professional identity.
+              </Typography>
+              <TextField
+                label="LinkedIn or portfolio URL"
+                placeholder="https://linkedin.com/in/you"
+                value={linkedin}
+                onChangeText={setLinkedin}
+                autoCapitalize="none"
+                keyboardType="url"
+                isRequired
+              />
+              {(options.verification_document_types.length
+                ? options.verification_document_types
+                : [
+                    {
+                      value: 'professional_license',
+                      label: 'Professional License',
+                    },
+                    {
+                      value: 'educational_credential',
+                      label: 'Educational Credential',
+                    },
+                    { value: 'government_id', label: 'Government ID' },
+                    {
+                      value: 'employee_reference_letter',
+                      label: 'Employee Reference Letter',
+                    },
+                  ]
+              ).map(d => (
+                <UploadTile
+                  key={d.value}
+                  label={d.label}
+                  required={false}
+                  done={!!docFiles[d.value]}
+                  fileName={docFiles[d.value]?.fileName}
+                  onPress={() => pickDoc(d.value)}
                 />
               ))}
-            </View>
-          </>
-        )}
+            </>
+          )}
 
-        {step === 5 && (
-          <>
-            <Typography fixed size={14} color={COLORS.body} mB={16} LineHeight={20}>
-              Tell us what you are looking for. We will tailor your matches for jobs, clients,
-              partnerships, mentorship, and more.
-            </Typography>
-            <View style={styles.chips}>
-              {goals.map(g => (
-                <Chip
-                  key={g}
-                  label={g}
-                  active={selectedGoals.includes(g)}
-                  onPress={() => toggle(selectedGoals, setSelectedGoals, g)}
-                />
-              ))}
-            </View>
-          </>
-        )}
-      </ScrollView>
+          {step === 4 && (
+            <>
+              <TextField
+                label="Professional bio"
+                placeholder="A short summary of who you are and what you do."
+                value={bio}
+                onChangeText={setBio}
+                multiline
+                maxLength={500}
+              />
+              <Typography fixed size={11} color={COLORS.mute} mB={16}>
+                {(bio ?? '').length}/500
+              </Typography>
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.mute}
+                textTransform="uppercase"
+                mB={8}
+                style={styles.track}>
+                Professional interests — select at least 2
+              </Typography>
+              <View style={styles.chips}>
+                {options.interests.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={selectedInterests.includes(item.value)}
+                    onPress={() =>
+                      toggleValue(
+                        selectedInterests,
+                        setSelectedInterests,
+                        item.value,
+                      )
+                    }
+                  />
+                ))}
+              </View>
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <Typography fixed size={14} color={COLORS.body} mB={16} LineHeight={20}>
+                Tell us what you are looking for. We will tailor your matches for
+                jobs, clients, partnerships, mentorship, and more.
+              </Typography>
+              <View style={styles.chips}>
+                {options.networking_goals.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={selectedGoals.includes(item.value)}
+                    onPress={() =>
+                      toggleValue(selectedGoals, setSelectedGoals, item.value)
+                    }
+                  />
+                ))}
+              </View>
+            </>
+          )}
+        </ScrollView>
+      )}
 
       <View style={styles.footer}>
         <Button
-          label={step === STEPS.length - 1 ? 'Submit for verification' : 'Continue'}
-          disabled={!canContinue}
-          onPress={() => {
-            if (step === STEPS.length - 1) setSubmitted(true);
-            else setStep(step + 1);
-          }}
+          label={
+            step === STEPS.length - 1 ? 'Submit for verification' : 'Continue'
+          }
+          disabled={!canContinue || bootLoading || !optionsReadyForStep}
+          loader={saving}
+          onPress={submitStep}
         />
       </View>
     </SafeAreaWrapper>
@@ -372,6 +769,19 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     paddingBottom: 40,
   },
+  loader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warnBox: {
+    backgroundColor: 'rgba(229,72,77,0.12)',
+    borderWidth: 1,
+    borderColor: COLORS.destructive,
+    borderRadius: RADIUS.md,
+    padding: 12,
+    marginBottom: 16,
+  },
   photoWrap: {
     alignItems: 'center',
     paddingVertical: 8,
@@ -386,6 +796,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(241,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  photoImg: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
   },
   chips: {
     flexDirection: 'row',

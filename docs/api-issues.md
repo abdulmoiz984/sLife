@@ -26,7 +26,47 @@ Update this file when new mismatches appear. Mobile team will keep Module A+ not
 
 ---
 
-## Verified working (Module A)
+### 2. `GET /profile/options` returns empty dropdown lists (blocks onboarding)
+
+| Field | Value |
+|-------|--------|
+| **Endpoint** | `GET /profile/options` |
+| **Auth** | Public |
+| **Date seen** | 2026-08-13 |
+| **Observed** | HTTP `200`, but these arrays are **empty**: `industries`, `professional_roles`, `organization_sizes`, `interests`, `networking_goals` |
+| **Populated** | Only `verification_document_types` has the 4 expected items |
+| **Expected (doc)** | Non-empty `{ value, label }` arrays for industries, roles, org sizes, interests, networking goals (§ B1 / §10) |
+| **Doc reference** | `mobile-api-integration.md` § B1 — “Always submit the `value` strings… never hardcode dropdown values” |
+| **Mobile impact** | **Critical.** Module B steps 2, 5, and 6 cannot be completed in-app (Continue stays disabled / warns). Step 3 org-size chips also empty. Mobile correctly refuses to hardcode option values. |
+| **Ask backend** | Seed admin option tables / config so `/profile/options` returns the documented option sets ASAP |
+
+**Sample observed payload (trimmed):**
+
+```json
+{
+  "success": true,
+  "message": "Profile options retrieved.",
+  "options": {
+    "industries": [],
+    "professional_roles": [],
+    "organization_sizes": [],
+    "interests": [],
+    "networking_goals": [],
+    "verification_document_types": [
+      { "value": "professional_license", "label": "Professional License" },
+      { "value": "educational_credential", "label": "Educational Credential" },
+      { "value": "government_id", "label": "Government ID" },
+      { "value": "employee_reference_letter", "label": "Employee Reference Letter" }
+    ]
+  }
+}
+```
+
+---
+
+## Verified working
+
+### Module A — Auth
 
 | Endpoint | Result |
 |----------|--------|
@@ -34,6 +74,16 @@ Update this file when new mismatches appear. Mobile team will keep Module A+ not
 | `POST /login` | `200` — returns `user` + `token` |
 | `GET /me` | `200` with Bearer token |
 | `POST /logout` | `200` — token revoked (`GET /me` then `401`) |
+
+### Module B — Profile (partial)
+
+| Endpoint | Result |
+|----------|--------|
+| `GET /profile/options` | `200` but **empty** option arrays (see issue #2) |
+| `GET /profile` | `200` — profile object + `onboarding_step` |
+| `POST /profile/basic-info` | `200` — saves name/phone/location, `onboarding_step: 1` |
+
+Not fully exercised yet (blocked by empty options): professional-info, organization, verification-documents, bio-interests, networking-goals.
 
 ---
 
@@ -48,5 +98,6 @@ Created via `POST /register` for app testing:
 | User id | `28` |
 | Status | `pending` |
 | `profile_completed` | `false` |
+| Notes | Basic info step already saved during API probe (`onboarding_step` ≥ 1) |
 
 > Prefer rotating this password after shared use. Do not use production member accounts for automated probes.

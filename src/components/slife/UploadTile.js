@@ -4,18 +4,31 @@ import { Typography } from '../../atomComponents';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import Icon from './Icon';
 
-const UploadTile = ({ label, done, onToggle, required }) => {
+const UploadTile = ({
+  label,
+  done,
+  onPress,
+  required,
+  fileName,
+  subtitle,
+}) => {
   return (
-    <Pressable onPress={onToggle} style={styles.tile}>
+    <Pressable onPress={onPress} style={styles.tile}>
       <View style={styles.iconBox}>
         <Icon.Doc size={20} color={COLORS.primary} />
       </View>
       <View style={styles.copy}>
-        <Typography fixed size={14} fFamily="interSemiBold600" color={COLORS.foreground}>
+        <Typography
+          fixed
+          size={14}
+          fFamily="interSemiBold600"
+          color={COLORS.foreground}>
           {label}
         </Typography>
         <Typography fixed size={12} color={COLORS.mute} mT={2}>
-          {done ? 'document.pdf' : 'Tap to upload'}
+          {done
+            ? fileName || 'File selected'
+            : subtitle || 'Tap to upload'}
         </Typography>
       </View>
       <View style={[styles.badge, done ? styles.badgeDone : styles.badgeIdle]}>
@@ -26,7 +39,7 @@ const UploadTile = ({ label, done, onToggle, required }) => {
           color={done ? COLORS.primary : COLORS.mute}
           textTransform="uppercase"
           style={styles.badgeText}>
-          {done ? 'Pending' : required ? 'Required' : 'Optional'}
+          {done ? 'Added' : required ? 'Required' : 'Optional'}
         </Typography>
       </View>
     </Pressable>

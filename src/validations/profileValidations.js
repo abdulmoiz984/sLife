@@ -20,12 +20,15 @@ const ProfessionalInfoSchema = Yup.object().shape({
 const OrganizationSchema = Yup.object().shape({
   company_name: Yup.string().nullable(),
   organization_size: Yup.string().nullable(),
-  website: Yup.string().url('Enter a valid URL').nullable(),
+  website: Yup.string()
+    .transform(value => (value === '' ? null : value))
+    .nullable()
+    .url('Enter a valid URL'),
 });
 
 const BioInterestsSchema = Yup.object().shape({
   bio: Yup.string()
-    .required('Bio is required')
+    .nullable()
     .max(500, 'Bio must be at most 500 characters'),
   interests: Yup.array()
     .of(Yup.string())

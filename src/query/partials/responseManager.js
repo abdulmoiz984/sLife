@@ -2,9 +2,19 @@ import { CommonActions } from '@react-navigation/native';
 //-------
 import { showMessage } from '../../utils';
 import { setUser, handleLogout } from '../../redux/slices/appSlice';
-import { storage } from '../../api/api';
+import { queryClient, storage } from '../../api/api';
 import { KEYS } from '../../constants';
 import { getMe } from '../../api/authService';
+import { getProfileOptions } from '../../api/profileService';
+
+async function Prefetching() {
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: ['profileOptions'],
+      queryFn: getProfileOptions,
+    }),
+  ]);
+}
 
 async function resolveUser(loginUser) {
   let user = loginUser;
@@ -42,6 +52,7 @@ export const onLoginSuccess = async (
 
       const user = await resolveUser(response?.user);
       dispatch(setUser(user));
+      await Prefetching();
 
       if (user?.status === 'rejected') {
         showMessage({
@@ -100,6 +111,7 @@ export const onRegisterSuccess = async (response, email, navigation, dispatch) =
       message: response?.message || 'Registration successful.',
     });
 
+    await Prefetching();
     navigation.navigate('VerifyScreen', { email });
   }
 };
