@@ -12,6 +12,8 @@ import {
   onboardCharts,
   onboardLounge,
 } from '../assets/images';
+import { storage } from '../api/api';
+import { KEYS } from '../constants';
 
 const SLIDES = [
   {
@@ -46,7 +48,10 @@ const OnboardingScreen = ({ navigation }) => {
   const slide = SLIDES[i];
   const last = i === SLIDES.length - 1;
 
-  const goLogin = () => navigation.replace('LoginScreen');
+  const goLogin = () => {
+    storage.set(KEYS.IS_ONBOARD, '1');
+    navigation.replace('LoginScreen');
+  };
 
   return (
     <View style={styles.root}>

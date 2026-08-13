@@ -52,20 +52,52 @@ api.interceptors.request.use(
   },
 );
 
+const isPublicAuthUrl = url => {
+  const path = String(url || '');
+  return (
+    path.includes('login') ||
+    path.includes('register') ||
+    path.includes('forgot-password') ||
+    path.includes('reset-password')
+  );
+};
+
 api.interceptors.response.use(
   res => res,
   err => {
     const error = err.response;
+    const requestUrl = err?.config?.url;
     console.log('Error in Axios Response Instance: ', error);
 
     if (error?.status === 500) {
       showMessage({
         type: 'danger',
-        message: error?.data?.message || error?.data?.error || 'Something went wrong please try again',
+        message:
+          error?.data?.message ||
+          error?.data?.error ||
+          'Something went wrong please try again',
       });
     }
 
-    if (error?.status === 400 || error?.status === 401) {
+    if (error?.status === 401) {
+      // Doc: 401 → clear token and send user to login (skip public auth routes)
+      if (!isPublicAuthUrl(requestUrl)) {
+        storage.delete(KEYS.ACCESS_TOKEN);
+        storage.delete(KEYS.CREDENTIALS);
+        if (!AUTH_APIS_DISABLED) {
+          showMessage({
+            type: 'danger',
+            message: error?.data?.message || 'Unauthenticated.',
+          });
+        }
+        try {
+          const { reset } = require('../navigation/NavigationService');
+          reset('LoginScreen');
+        } catch (_) {
+          // navigation may not be ready during boot
+        }
+      }
+    } else if (error?.status === 400) {
       if (!AUTH_APIS_DISABLED) {
         showMessage({
           type: 'danger',
@@ -93,7 +125,8 @@ api.interceptors.response.use(
     if (error?.status === 429) {
       showMessage({
         type: 'danger',
-        message: error?.data?.message || 'Too many requests. Please try again later.',
+        message:
+          error?.data?.message || 'Too many requests. Please try again later.',
       });
     }
 

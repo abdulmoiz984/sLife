@@ -1,6 +1,7 @@
 import LoginScreen from './Auth/LoginScreen';
 import SignupScreen from './Auth/SignupScreen';
 import ForgotPasswordScreen from './Auth/ForgotPasswordScreen';
+import ResetPasswordScreen from './Auth/ResetPasswordScreen';
 import SplashScreen from './SplashScreen';
 import OnboardingScreen from './OnboardingScreen';
 import VerifyScreen from './Auth/VerifyScreen';
@@ -18,6 +19,7 @@ export {
   LoginScreen,
   SignupScreen,
   ForgotPasswordScreen,
+  ResetPasswordScreen,
   SplashScreen,
   OnboardingScreen,
   VerifyScreen,

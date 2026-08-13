@@ -1,23 +1,45 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, Pressable, Keyboard } from 'react-native';
-import { SafeAreaWrapper, Typography } from '../../atomComponents';
-import {
-  Button,
-  AppLogo,
-  TextField,
-  DividerOr,
-  SocialAuthButton,
-} from '../../components';
-import { Icon, Overline } from '../../components/slife';
+import { useDispatch } from 'react-redux';
+//------------------
+import { FormController, SafeAreaWrapper, Typography } from '../../atomComponents';
+import { Button, AppLogo, TextField } from '../../components';
+import { Overline } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
+import { login } from '../../api/authService';
+import { useCustomMutation } from '../../query/useCustomMutation';
+import { onLoginSuccess } from '../../query/partials/responseManager';
+import validatoinSchema from '../../validations';
+import { formatBackendErrors, showMessage } from '../../utils';
+
+const DEV_EMAIL = 'slife.mobile.test+20260813000735@acmecorp.com';
+const DEV_PASSWORD = 'SecurePass1!';
 
 const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const goToApp = () => {
+  const { mutateAsync: requestLogin, isPending } = useCustomMutation({
+    mutationFn: data => login(data, setIsLoading),
+    onSuccess: (response, reqData) => {
+      onLoginSuccess(response, navigation, dispatch, reqData, setIsLoading);
+    },
+    onError: response => {
+      setIsLoading(false);
+      if (response?.status === 422 && response?.data?.message && !response?.data?.errors) {
+        showMessage({ type: 'danger', message: response.data.message });
+      }
+    },
+  });
+
+  const handleLogin = (values, { setErrors }) => {
     Keyboard.dismiss();
-    navigation.replace('MainTabs');
+    requestLogin(values).catch(err => {
+      const parsedErrors = formatBackendErrors(err?.response?.data?.errors);
+      if (Object.keys(parsedErrors).length) {
+        setErrors(parsedErrors);
+      }
+    });
   };
 
   return (
@@ -51,49 +73,55 @@ const LoginScreen = ({ navigation }) => {
           Sign in to your private network of verified professionals.
         </Typography>
 
-        <View style={styles.form}>
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@company.com"
-            keyboardType="email-address"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            secureTextEntry
-          />
-          <Pressable
-            onPress={() => navigation.navigate('ForgotPasswordScreen')}
-            style={styles.forgotLink}>
-            <Typography
-              fixed
-              size={12}
-              fFamily="interSemiBold600"
-              color={COLORS.primary}
-              textTransform="uppercase"
-              style={styles.track}>
-              Forgot password?
-            </Typography>
-          </Pressable>
-          <Button label="Log in" onPress={goToApp} />
-        </View>
-
-        <DividerOr />
-
-        <SocialAuthButton
-          label="Continue with LinkedIn"
-          icon={<Icon.LinkedIn />}
-          onPress={goToApp}
-        />
-        <SocialAuthButton
-          label="Continue with Facebook"
-          icon={<Icon.Facebook />}
-          onPress={goToApp}
-        />
+        <FormController
+          initialValues={{
+            email: __DEV__ ? DEV_EMAIL : '',
+            password: __DEV__ ? DEV_PASSWORD : '',
+          }}
+          validationSchema={validatoinSchema.authValidations.SignInSchema}
+          onSubmit={handleLogin}>
+          {({ handleSubmit, handleChange, handleBlur, values, errors }) => (
+            <View style={styles.form}>
+              <TextField
+                label="Email"
+                value={values.email}
+                onChangeText={handleChange('email')}
+                onBlur={handleBlur('email')}
+                error={errors.email}
+                placeholder="you@company.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TextField
+                label="Password"
+                value={values.password}
+                onChangeText={handleChange('password')}
+                onBlur={handleBlur('password')}
+                error={errors.password}
+                placeholder="••••••••"
+                secureTextEntry
+              />
+              <Pressable
+                onPress={() => navigation.navigate('ForgotPasswordScreen')}
+                style={styles.forgotLink}>
+                <Typography
+                  fixed
+                  size={12}
+                  fFamily="interSemiBold600"
+                  color={COLORS.primary}
+                  textTransform="uppercase"
+                  style={styles.track}>
+                  Forgot password?
+                </Typography>
+              </Pressable>
+              <Button
+                label="Log in"
+                onPress={handleSubmit}
+                loader={isPending || isLoading}
+              />
+            </View>
+          )}
+        </FormController>
 
         <Typography
           fixed

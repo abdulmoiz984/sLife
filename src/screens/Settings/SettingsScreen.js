@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useDispatch } from 'react-redux';
+//------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Icon, TopBar } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
+import { logout } from '../../api/authService';
+import { handleLogout } from '../../redux/slices/appSlice';
+import { queryClient } from '../../api/api';
+import { showMessage } from '../../utils';
 
 const SECTIONS = [
   {
@@ -23,7 +29,9 @@ const SECTIONS = [
   },
   {
     label: 'Membership',
-    items: [{ label: 'Subscription & Billing', hint: '$15/mo', to: 'SubscriptionScreen' }],
+    items: [
+      { label: 'Subscription & Billing', hint: '$15/mo', to: 'SubscriptionScreen' },
+    ],
   },
   {
     label: 'Support',
@@ -32,23 +40,51 @@ const SECTIONS = [
   {
     label: '',
     items: [
-      { label: 'Log Out', danger: true, to: 'LoginScreen', replace: true },
+      { label: 'Log Out', danger: true, action: 'logout' },
       { label: 'Delete Account', danger: true },
     ],
   },
 ];
 
 const SettingsScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const performLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch (err) {
+      console.log('🚀 ~ logout err:', err?.response?.data || err);
+    } finally {
+      queryClient.clear();
+      dispatch(handleLogout());
+      showMessage({ type: 'success', message: 'Logged out successfully.' });
+      navigation.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
+      setLoggingOut(false);
+    }
+  };
+
   const onItem = item => {
+    if (item.action === 'logout') {
+      performLogout();
+      return;
+    }
     if (!item.to) return;
-    if (item.replace) navigation.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
-    else navigation.navigate(item.to);
+    navigation.navigate(item.to);
   };
 
   return (
     <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
-      <TopBar overline="Configuration" title="Settings" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <TopBar
+        overline="Configuration"
+        title="Settings"
+        onBack={() => navigation.goBack()}
+      />
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}>
         {SECTIONS.map((s, i) => (
           <View key={i} style={styles.section}>
             {!!s.label && (
@@ -64,13 +100,19 @@ const SettingsScreen = ({ navigation }) => {
             )}
             <View style={styles.list}>
               {s.items.map(it => (
-                <Pressable key={it.label} onPress={() => onItem(it)} style={styles.row}>
+                <Pressable
+                  key={it.label}
+                  onPress={() => onItem(it)}
+                  disabled={it.action === 'logout' && loggingOut}
+                  style={styles.row}>
                   <Typography
                     fixed
                     size={14}
                     fFamily="interMedium500"
                     color={it.danger ? COLORS.destructive : COLORS.foreground}>
-                    {it.label}
+                    {it.action === 'logout' && loggingOut
+                      ? 'Logging out…'
+                      : it.label}
                   </Typography>
                   <View style={styles.right}>
                     {!!it.hint && (
@@ -90,7 +132,13 @@ const SettingsScreen = ({ navigation }) => {
             </View>
           </View>
         ))}
-        <Typography fixed size={11} color={COLORS.mute} textAlign="center" mT={32} mB={24}>
+        <Typography
+          fixed
+          size={11}
+          color={COLORS.mute}
+          textAlign="center"
+          mT={32}
+          mB={24}>
           S-Life · Version 1.0
         </Typography>
       </ScrollView>

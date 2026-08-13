@@ -1,16 +1,37 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, Keyboard } from 'react-native';
-import { SafeAreaWrapper, Typography } from '../../atomComponents';
+import React from 'react';
+import { ScrollView, StyleSheet, View, Keyboard, Pressable } from 'react-native';
+//------------------
+import { FormController, SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, AppLogo, TextField, AuthBackLink } from '../../components';
 import { Overline } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
+import { forgotPassword } from '../../api/authService';
+import { useCustomMutation } from '../../query/useCustomMutation';
+import validatoinSchema from '../../validations';
+import { formatBackendErrors, showMessage } from '../../utils';
 
 const ForgotPasswordScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
+  const { mutateAsync: requestForgot, isPending } = useCustomMutation({
+    mutationFn: forgotPassword,
+    onSuccess: (response, values) => {
+      showMessage({
+        type: 'success',
+        message:
+          response?.message ||
+          'If an account exists with that email, a password reset link has been sent.',
+      });
+      navigation.navigate('ResetPasswordScreen', { email: values?.email });
+    },
+  });
 
-  const handleSubmit = () => {
+  const handleForgotPassword = (values, { setErrors }) => {
     Keyboard.dismiss();
-    navigation.navigate('LoginScreen');
+    requestForgot(values).catch(err => {
+      const parsedErrors = formatBackendErrors(err?.response?.data?.errors);
+      if (Object.keys(parsedErrors).length) {
+        setErrors(parsedErrors);
+      }
+    });
   };
 
   return (
@@ -46,16 +67,48 @@ const ForgotPasswordScreen = ({ navigation }) => {
           Enter your email and we'll send a reset link.
         </Typography>
 
-        <View style={styles.form}>
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@company.com"
-            keyboardType="email-address"
-          />
-          <Button label="Send reset link" onPress={handleSubmit} />
-        </View>
+        <FormController
+          initialValues={{ email: '' }}
+          validationSchema={validatoinSchema.authValidations.ForgotPasswordSchema}
+          onSubmit={handleForgotPassword}>
+          {({ handleSubmit, handleChange, handleBlur, values, errors }) => (
+            <View style={styles.form}>
+              <TextField
+                label="Email"
+                value={values.email}
+                onChangeText={handleChange('email')}
+                onBlur={handleBlur('email')}
+                error={errors.email}
+                placeholder="you@company.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Button
+                label="Send reset link"
+                onPress={handleSubmit}
+                loader={isPending}
+              />
+              <Pressable
+                onPress={() =>
+                  navigation.navigate('ResetPasswordScreen', {
+                    email: values.email,
+                  })
+                }
+                style={styles.tokenLink}>
+                <Typography
+                  fixed
+                  size={12}
+                  fFamily="interSemiBold600"
+                  color={COLORS.primary}
+                  textAlign="center"
+                  textTransform="uppercase"
+                  style={styles.track}>
+                  Already have a reset token?
+                </Typography>
+              </Pressable>
+            </View>
+          )}
+        </FormController>
       </ScrollView>
     </SafeAreaWrapper>
   );
@@ -81,5 +134,12 @@ const styles = StyleSheet.create({
   },
   form: {
     marginTop: 40,
+  },
+  tokenLink: {
+    marginTop: 20,
+    paddingVertical: 8,
+  },
+  track: {
+    letterSpacing: 0.72,
   },
 });

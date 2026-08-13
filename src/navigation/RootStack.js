@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import FlashMessage from 'react-native-flash-message';
@@ -6,8 +6,16 @@ import FlashMessage from 'react-native-flash-message';
 import StackNavigator from './StackNavigator';
 import { COLORS } from '../globalStyle/Theme';
 import { navigationRef } from './NavigationService';
+import { storage } from '../api/api';
 
 const RootStack = () => {
+
+
+  useEffect(() => {
+  // storage.clearAll()
+
+  }, [])
+  
   return (
     <NavigationContainer ref={navigationRef}>
       <StatusBar

@@ -1,34 +1,36 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, View, Pressable, Keyboard } from 'react-native';
-import { SafeAreaWrapper, Typography } from '../../atomComponents';
-import {
-  Button,
-  AppLogo,
-  TextField,
-  DividerOr,
-  SocialAuthButton,
-} from '../../components';
+import { useDispatch } from 'react-redux';
+//------------------
+import { FormController, SafeAreaWrapper, Typography } from '../../atomComponents';
+import { Button, AppLogo, TextField } from '../../components';
 import { Icon, Overline } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
+import { register } from '../../api/authService';
+import { useCustomMutation } from '../../query/useCustomMutation';
+import { onRegisterSuccess } from '../../query/partials/responseManager';
+import validatoinSchema from '../../validations';
+import { formatBackendErrors } from '../../utils';
 
 const SignupScreen = ({ navigation }) => {
-  const [agreed, setAgreed] = useState(false);
-  const [form, setForm] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    confirm: '',
+  const dispatch = useDispatch();
+
+  const { mutateAsync: requestRegister, isPending } = useCustomMutation({
+    mutationFn: register,
+    onSuccess: (response, values) => {
+      onRegisterSuccess(response, values?.email, navigation, dispatch);
+    },
   });
 
-  const set = key => value => setForm(prev => ({ ...prev, [key]: value }));
-
-  const submit = () => {
+  const handleRegister = (values, { setErrors }) => {
     Keyboard.dismiss();
-    if (!agreed) return;
-    navigation.navigate('VerifyScreen');
+    requestRegister(values).catch(err => {
+      const parsedErrors = formatBackendErrors(err?.response?.data?.errors);
+      if (Object.keys(parsedErrors).length) {
+        setErrors(parsedErrors);
+      }
+    });
   };
-
-  const goHome = () => navigation.replace('MainTabs');
 
   return (
     <SafeAreaWrapper keyboardAvoid bgColor={COLORS.background}>
@@ -61,60 +63,118 @@ const SignupScreen = ({ navigation }) => {
           Every application is reviewed. Only verified professionals are admitted.
         </Typography>
 
-        <View style={styles.form}>
-          <TextField
-            label="Full name"
-            value={form.fullName}
-            onChangeText={set('fullName')}
-            placeholder="e.g. Jordan Everly"
-            autoCapitalize="words"
-          />
-          <TextField
-            label="Business email"
-            value={form.email}
-            onChangeText={set('email')}
-            placeholder="you@company.com"
-            keyboardType="email-address"
-          />
-          <TextField
-            label="Password"
-            value={form.password}
-            onChangeText={set('password')}
-            placeholder="Minimum 10 characters"
-            secureTextEntry
-          />
-          <TextField
-            label="Confirm password"
-            value={form.confirm}
-            onChangeText={set('confirm')}
-            placeholder="Re-enter password"
-            secureTextEntry
-          />
+        <FormController
+          initialValues={{
+            full_name: '',
+            email: '',
+            password: '',
+            password_confirmation: '',
+            terms_accepted: false,
+          }}
+          validationSchema={validatoinSchema.authValidations.SignUpSchema}
+          onSubmit={handleRegister}>
+          {({
+            handleSubmit,
+            handleChange,
+            handleBlur,
+            values,
+            errors,
+            setFieldValue,
+          }) => (
+            <View style={styles.form}>
+              <TextField
+                label="Full name"
+                value={values.full_name}
+                onChangeText={handleChange('full_name')}
+                onBlur={handleBlur('full_name')}
+                error={errors.full_name}
+                placeholder="e.g. Jordan Everly"
+                autoCapitalize="words"
+              />
+              <TextField
+                label="Business email"
+                value={values.email}
+                onChangeText={handleChange('email')}
+                onBlur={handleBlur('email')}
+                error={errors.email}
+                placeholder="you@company.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TextField
+                label="Password"
+                value={values.password}
+                onChangeText={handleChange('password')}
+                onBlur={handleBlur('password')}
+                error={errors.password}
+                placeholder="Minimum 10 characters"
+                secureTextEntry
+              />
+              <TextField
+                label="Confirm password"
+                value={values.password_confirmation}
+                onChangeText={handleChange('password_confirmation')}
+                onBlur={handleBlur('password_confirmation')}
+                error={errors.password_confirmation}
+                placeholder="Re-enter password"
+                secureTextEntry
+              />
 
-          <Pressable onPress={() => setAgreed(v => !v)} style={styles.checkRow}>
-            <View style={[styles.box, agreed && styles.boxOn]}>
-              {agreed && <Icon.Check size={16} color={COLORS.primaryForeground} strokeWidth={3} />}
+              <Pressable
+                onPress={() =>
+                  setFieldValue('terms_accepted', !values.terms_accepted)
+                }
+                style={styles.checkRow}>
+                <View
+                  style={[styles.box, values.terms_accepted && styles.boxOn]}>
+                  {values.terms_accepted && (
+                    <Icon.Check
+                      size={16}
+                      color={COLORS.primaryForeground}
+                      strokeWidth={3}
+                    />
+                  )}
+                </View>
+                <Typography
+                  fixed
+                  size={13}
+                  color={COLORS.body}
+                  LineHeight={20}
+                  style={styles.checkCopy}>
+                  I agree to the{' '}
+                  <Typography
+                    fixed
+                    size={13}
+                    color={COLORS.primary}
+                    style={styles.underline}>
+                    Terms
+                  </Typography>{' '}
+                  and{' '}
+                  <Typography
+                    fixed
+                    size={13}
+                    color={COLORS.primary}
+                    style={styles.underline}>
+                    Privacy Policy
+                  </Typography>
+                  , and consent to identity verification.
+                </Typography>
+              </Pressable>
+              {!!errors.terms_accepted && (
+                <Typography fixed size={12} color={COLORS.destructive} mB={12}>
+                  {errors.terms_accepted}
+                </Typography>
+              )}
+
+              <Button
+                label="Create account"
+                onPress={handleSubmit}
+                loader={isPending}
+                disabled={!values.terms_accepted}
+              />
             </View>
-            <Typography fixed size={13} color={COLORS.body} LineHeight={20} style={styles.checkCopy}>
-              I agree to the{' '}
-              <Typography fixed size={13} color={COLORS.primary} style={styles.underline}>
-                Terms
-              </Typography>{' '}
-              and{' '}
-              <Typography fixed size={13} color={COLORS.primary} style={styles.underline}>
-                Privacy Policy
-              </Typography>
-              , and consent to identity verification.
-            </Typography>
-          </Pressable>
-
-          <Button label="Create account" onPress={submit} disabled={!agreed} />
-        </View>
-
-        <DividerOr />
-
-        <SocialAuthButton label="Continue with LinkedIn" icon={<Icon.LinkedIn />} onPress={goHome} />
-        <SocialAuthButton label="Continue with Facebook" icon={<Icon.Facebook />} onPress={goHome} />
+          )}
+        </FormController>
 
         <Typography
           fixed
@@ -167,7 +227,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
     paddingTop: 8,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   box: {
     width: 20,
