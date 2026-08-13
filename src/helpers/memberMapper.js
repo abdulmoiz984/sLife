@@ -63,8 +63,9 @@ export function mapMemberDetail(member) {
     phone: basic.phone_number,
     avatar: photo ? { uri: photo } : null,
     cover: onboardBoardroom,
-    tier: badgeToTier(ver.verification_badge),
-    verificationBadgeLabel: ver.verification_badge_label,
+    tier: badgeToTier(ver.verification_badge || member.verification_badge),
+    verificationBadgeLabel:
+      ver.verification_badge_label || member.verification_badge_label,
     interests: (bio.interests || []).map(i =>
       typeof i === 'string' ? i : i.label || i.value,
     ),
@@ -79,9 +80,89 @@ export function mapMemberDetail(member) {
         ? `${e.start_date || ''} — Present`
         : [e.start_date, e.end_date].filter(Boolean).join(' — '),
     })),
+    documents: (ver.documents || []).map(d => ({
+      id: d.id,
+      category: d.type,
+      label: d.type_label || d.type,
+      name: d.original_filename,
+      url: d.file_url,
+    })),
     connection: member.connection || null,
     profileCompleted: member.profile_completed,
     raw: member,
+  };
+}
+
+/**
+ * Map GET /profile (own profile) + auth user → FullProfileView shape.
+ * Profile payload nests sections like members detail, but name/email/badge
+ * often live on the auth user or profile root.
+ */
+export function mapOwnProfile(profile, user) {
+  if (!profile && !user) return null;
+
+  const basic = profile?.basic_info || {};
+  const pro = profile?.professional_info || {};
+  const org = profile?.organization || {};
+  const ver = profile?.verification || {};
+  const bio = profile?.bio_interests || {};
+  const photo = basic.profile_photo_url || user?.profile_photo_url;
+
+  const badge =
+    profile?.verification_badge ||
+    ver.verification_badge ||
+    user?.verification_badge;
+  const badgeLabel =
+    profile?.verification_badge_label ||
+    ver.verification_badge_label ||
+    user?.verification_badge_label;
+
+  return {
+    id: user?.id,
+    name: basic.full_name || user?.full_name || 'You',
+    email: user?.email,
+    headline: pro.professional_title || '',
+    shortIntro: '',
+    bio: bio.bio || '',
+    company: org.company_name || '',
+    currentPosition: pro.professional_title || pro.professional_role_label || '',
+    location: basic.location || '',
+    industry: pro.industry_label || pro.industry || '',
+    yearsExperience: pro.years_of_experience,
+    roleLabel: pro.professional_role_label || '',
+    website: org.website || '',
+    linkedin: ver.linkedin_or_portfolio_url || '',
+    phone: basic.phone_number,
+    avatar: photo ? { uri: photo } : null,
+    cover: onboardBoardroom,
+    tier: badgeToTier(badge),
+    verificationBadgeLabel: badgeLabel,
+    experience: [],
+    certifications: [],
+    skills: [],
+    interests: (bio.interests || []).map(i =>
+      typeof i === 'string' ? i : i.label || i.value,
+    ),
+    networkingGoals: (profile?.networking_goals || []).map(g =>
+      typeof g === 'string' ? g : g.label || g.value,
+    ),
+    education: (profile?.educations || []).map(e => ({
+      school: e.institution,
+      degree: e.degree,
+      field: e.field_of_study,
+      period: e.is_current
+        ? `${e.start_date || ''} — Present`
+        : [e.start_date, e.end_date].filter(Boolean).join(' — '),
+    })),
+    documents: (ver.documents || []).map(d => ({
+      id: d.id,
+      category: d.type,
+      label: d.type_label || d.type,
+      name: d.original_filename,
+      url: d.file_url,
+    })),
+    profileCompleted: profile?.profile_completed ?? user?.profile_completed,
+    raw: profile || user,
   };
 }
 

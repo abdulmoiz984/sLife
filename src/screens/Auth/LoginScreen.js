@@ -12,8 +12,8 @@ import { onLoginSuccess } from '../../query/partials/responseManager';
 import validatoinSchema from '../../validations';
 import { formatBackendErrors, showMessage } from '../../utils';
 
-const DEV_EMAIL = 'slife.mobile.test+20260813000735@acmecorp.com';
-const DEV_PASSWORD = 'SecurePass1!';
+const DEV_EMAIL = 'david@mailinator.com';
+const DEV_PASSWORD = 'Admin@1234';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();

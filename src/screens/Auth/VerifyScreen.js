@@ -44,7 +44,7 @@ import {
   maskUsPhoneWithCode,
   showMessage,
 } from '../../utils';
-import { pickUploadAsset } from '../../helpers/pickMedia';
+import { pickUploadAsset, pickPdfDocument } from '../../helpers/pickMedia';
 import { getMe } from '../../api/authService';
 
 const STEPS = [
@@ -290,9 +290,16 @@ const VerifyScreen = ({ navigation }) => {
   };
 
   const pickDoc = async docValue => {
-    const asset = await pickUploadAsset({ mediaType: 'mixed' });
-    if (asset) {
-      setDocFiles(prev => ({ ...prev, [docValue]: asset }));
+    try {
+      const asset = await pickPdfDocument();
+      if (asset) {
+        setDocFiles(prev => ({ ...prev, [docValue]: asset }));
+      }
+    } catch (_) {
+      showMessage({
+        type: 'danger',
+        message: 'Could not open the PDF picker. Please try again.',
+      });
     }
   };
 
@@ -665,6 +672,7 @@ const VerifyScreen = ({ navigation }) => {
                 keyboardType="url"
                 isRequired
               />
+              {/* Temporarily hidden — Professional License / Educational Credential / Government ID
               {(options.verification_document_types.length
                 ? options.verification_document_types
                 : [
@@ -692,6 +700,15 @@ const VerifyScreen = ({ navigation }) => {
                   onPress={() => pickDoc(d.value)}
                 />
               ))}
+              */}
+              <UploadTile
+                label="Employee Reference Letter"
+                required={false}
+                subtitle="Tap to upload PDF"
+                done={!!docFiles.employee_reference_letter}
+                fileName={docFiles.employee_reference_letter?.fileName}
+                onPress={() => pickDoc('employee_reference_letter')}
+              />
             </>
           )}
 

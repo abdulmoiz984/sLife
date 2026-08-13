@@ -1,20 +1,90 @@
-import React from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import {
+  View,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+//------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
 import { FullProfileView, Icon, Overline } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import { people } from '../../constants/mockData';
 import { getProfileCompletion } from '../../helpers/profileCompletion';
+import { mapOwnProfile } from '../../helpers/memberMapper';
+import { useCustomQuery } from '../../query/useCustomQuery';
+import { getProfile } from '../../api/profileService';
+
+const membershipCopy = person => {
+  const badge = person?.verificationBadgeLabel || person?.tier;
+  if (person?.tier === 'Elite') {
+    return `You are ${badge || 'Elite Verified'}. Your profile is open to every kind of professional.`;
+  }
+  if (person?.tier === 'Verified') {
+    return `You are ${badge || 'Verified'}. Keep your profile complete to unlock more matches.`;
+  }
+  if (person?.raw?.verification_submitted_at || person?.profileCompleted) {
+    return 'Your profile is submitted. Verification is pending review.';
+  }
+  return 'Complete your profile and submit for verification to get a badge.';
+};
 
 const MeScreen = ({ navigation }) => {
-  const me = people[1];
-  const completion = getProfileCompletion(me);
+  const user = useSelector(state => state.app.user);
+
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useCustomQuery({
+    queryKey: ['profile', 'me'],
+    queryFn: getProfile,
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
+
+  const person = useMemo(
+    () => mapOwnProfile(data?.profile, user),
+    [data?.profile, user],
+  );
+
+  const completion = person ? getProfileCompletion(person) : 0;
+
+  if (isLoading && !person) {
+    return (
+      <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
+        <View style={styles.center}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (isError || !person) {
+    return (
+      <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
+        <View style={styles.center}>
+          <Typography fixed size={14} color={COLORS.body} textAlign="center">
+            Could not load your profile.
+          </Typography>
+          <Button label="Retry" onPress={() => refetch()} mt={16} />
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
     <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
       <FullProfileView
-        person={me}
+        person={person}
         showCompletion
         headerActions={
           <Pressable
@@ -25,6 +95,12 @@ const MeScreen = ({ navigation }) => {
         }
         actions={
           <View style={styles.actions}>
+            {isFetching && !isLoading ? (
+              <ActivityIndicator
+                color={COLORS.mute}
+                style={styles.refreshSpinner}
+              />
+            ) : null}
             <View style={styles.memberCard}>
               <View style={styles.checkBox}>
                 <Icon.Check size={16} color={COLORS.primary} strokeWidth={2.5} />
@@ -32,19 +108,32 @@ const MeScreen = ({ navigation }) => {
               <View style={styles.memberCopy}>
                 <Overline>Membership status</Overline>
                 <Typography fixed size={13} color={COLORS.foreground} mT={4}>
-                  You are Elite Verified. Your profile is open to every kind of professional.
+                  {membershipCopy(person)}
                 </Typography>
               </View>
             </View>
             <Button
               type="secondary"
               label="Edit profile"
-              onPress={() => navigation.getParent()?.navigate('ProfileSetupScreen')}
+              onPress={() =>
+                navigation.getParent()?.navigate('ProfileSetupScreen')
+              }
+            />
+            <Button
+              type="ghost"
+              label="Education"
+              onPress={() =>
+                navigation.getParent()?.navigate('EducationsScreen')
+              }
+              mt={12}
+              textColor={COLORS.mute}
             />
             {completion < 100 && (
               <Button
                 label={`Complete profile (${completion}%)`}
-                onPress={() => navigation.getParent()?.navigate('ProfileSetupScreen')}
+                onPress={() =>
+                  navigation.getParent()?.navigate('ProfileSetupScreen')
+                }
                 mt={12}
               />
             )}
@@ -58,6 +147,12 @@ const MeScreen = ({ navigation }) => {
 export default MeScreen;
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
   settingsBtn: {
     position: 'absolute',
     top: 16,
@@ -70,6 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
   },
   actions: { gap: 0 },
+  refreshSpinner: { marginBottom: 8 },
   memberCard: {
     borderWidth: 1,
     borderColor: 'rgba(241,0,0,0.6)',

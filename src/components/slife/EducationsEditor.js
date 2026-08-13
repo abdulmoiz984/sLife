@@ -3,7 +3,10 @@ import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 //------------------
 import { Typography } from '../../atomComponents';
-import { Button, TextField, ScreenOverlayLoader } from '../../components';
+import Button from '../customButtons/Button';
+import TextField from '../customFields/TextField';
+import DateField from '../customFields/DateField';
+import ScreenOverlayLoader from '../ScreenOverlayLoader';
 import Icon from './Icon';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
@@ -294,20 +297,25 @@ const EducationsEditor = ({ compact = false }) => {
             value={form.field_of_study}
             onChangeText={set('field_of_study')}
           />
-          <TextField
+          <DateField
             label="Start date"
-            placeholder="YYYY-MM-DD"
+            placeholder="Select start date"
             value={form.start_date}
-            onChangeText={set('start_date')}
-            autoCapitalize="none"
+            onChange={set('start_date')}
+            maximumDate={new Date()}
           />
           {!form.is_current && (
-            <TextField
+            <DateField
               label="End date"
-              placeholder="YYYY-MM-DD"
+              placeholder="Select end date"
               value={form.end_date}
-              onChangeText={set('end_date')}
-              autoCapitalize="none"
+              onChange={set('end_date')}
+              minimumDate={
+                form.start_date
+                  ? new Date(form.start_date.replace(/-/g, '/'))
+                  : undefined
+              }
+              maximumDate={new Date()}
             />
           )}
           <Pressable

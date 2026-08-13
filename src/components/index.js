@@ -9,6 +9,7 @@ import RegisterProgressBar from './auth/RegisterProgressBar';
 import InterestChip from './auth/InterestChip';
 import ScreenHeader from './common/ScreenHeader';
 import ScreenOverlayLoader from './ScreenOverlayLoader';
+import DateField from './customFields/DateField';
 
 export {
   Button,
@@ -22,6 +23,7 @@ export {
   InterestChip,
   ScreenHeader,
   ScreenOverlayLoader,
+  DateField,
 };
 
 export {

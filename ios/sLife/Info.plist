@@ -35,6 +35,10 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>sLife needs photo library access to upload your profile photo and documents.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>sLife needs camera access to take a profile photo.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

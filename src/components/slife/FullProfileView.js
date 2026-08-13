@@ -113,18 +113,22 @@ const FullProfileView = ({
         </View>
 
         <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <Icon.Building size={16} color={COLORS.mute} />
-            <Typography fixed size={13} color={COLORS.mute}>
-              {person.currentPosition} · {person.company}
-            </Typography>
-          </View>
-          <View style={styles.metaItem}>
-            <Icon.Pin size={16} color={COLORS.mute} />
-            <Typography fixed size={13} color={COLORS.mute}>
-              {person.location}
-            </Typography>
-          </View>
+          {(!!person.currentPosition || !!person.company) && (
+            <View style={styles.metaItem}>
+              <Icon.Building size={16} color={COLORS.mute} />
+              <Typography fixed size={13} color={COLORS.mute}>
+                {[person.currentPosition, person.company].filter(Boolean).join(' · ')}
+              </Typography>
+            </View>
+          )}
+          {!!person.location && (
+            <View style={styles.metaItem}>
+              <Icon.Pin size={16} color={COLORS.mute} />
+              <Typography fixed size={13} color={COLORS.mute}>
+                {person.location}
+              </Typography>
+            </View>
+          )}
         </View>
 
         {(person.industry || person.yearsExperience != null || person.timezone) && (
@@ -139,9 +143,9 @@ const FullProfileView = ({
           </Typography>
         )}
 
-        {person.lookingFor?.length > 0 && (
+        {!!person.lookingFor?.length && (
           <View style={styles.chipWrap}>
-            {person.lookingFor.map(item => (
+            {(person.lookingFor || []).map(item => (
               <Chip key={item} label={`Looking for: ${item}`} active />
             ))}
           </View>
@@ -172,8 +176,8 @@ const FullProfileView = ({
           )}
         </Section>
 
-        <Section title="Professional experience" show={person.experience?.length > 0}>
-          {person.experience.map(e => (
+        <Section title="Professional experience" show={(person.experience?.length ?? 0) > 0}>
+          {(person.experience || []).map(e => (
             <View key={`${e.role}-${e.company}`} style={styles.card}>
               <View style={styles.cardRow}>
                 <IconBox>
@@ -205,8 +209,8 @@ const FullProfileView = ({
           ))}
         </Section>
 
-        <Section title="Education" show={person.education?.length > 0}>
-          {person.education.map(e => (
+        <Section title="Education" show={(person.education?.length ?? 0) > 0}>
+          {(person.education || []).map(e => (
             <View key={`${e.school}-${e.degree}`} style={styles.card}>
               <View style={styles.cardRow}>
                 <IconBox>
@@ -234,8 +238,8 @@ const FullProfileView = ({
           ))}
         </Section>
 
-        <Section title="Certifications" show={person.certifications?.length > 0}>
-          {person.certifications.map(c => (
+        <Section title="Certifications" show={(person.certifications?.length ?? 0) > 0}>
+          {(person.certifications || []).map(c => (
             <View key={c.name} style={styles.listRow}>
               <Icon.Doc size={16} color={COLORS.primary} />
               <View>
@@ -276,9 +280,9 @@ const FullProfileView = ({
           <ListBlock items={person.awards ?? []} />
         </Section>
 
-        <Section title="Skills & expertise" show={person.skills?.length > 0}>
+        <Section title="Skills & expertise" show={(person.skills?.length ?? 0) > 0}>
           <View style={styles.chipWrap}>
-            {person.skills.map(s => (
+            {(person.skills || []).map(s => (
               <Chip key={s} label={s} />
             ))}
           </View>
@@ -286,15 +290,15 @@ const FullProfileView = ({
 
         <Section title="Areas of specialization" show={(person.specializations?.length ?? 0) > 0}>
           <View style={styles.chipWrap}>
-            {person.specializations?.map(s => (
+            {(person.specializations || []).map(s => (
               <Chip key={s} label={s} active />
             ))}
           </View>
         </Section>
 
-        <Section title="Professional interests" show={person.interests?.length > 0}>
+        <Section title="Professional interests" show={(person.interests?.length ?? 0) > 0}>
           <View style={styles.chipWrap}>
-            {person.interests.map(i => (
+            {(person.interests || []).map(i => (
               <Chip key={i} label={i} active />
             ))}
           </View>
@@ -302,7 +306,7 @@ const FullProfileView = ({
 
         <Section title="Networking goals" show={(person.networkingGoals?.length ?? 0) > 0}>
           <View style={styles.chipWrap}>
-            {person.networkingGoals?.map(g => (
+            {(person.networkingGoals || []).map(g => (
               <Chip key={g} label={g} />
             ))}
           </View>
@@ -310,7 +314,7 @@ const FullProfileView = ({
 
         <Section title="Languages" show={(person.languages?.length ?? 0) > 0}>
           <View style={styles.chipWrap}>
-            {person.languages?.map(l => (
+            {(person.languages || []).map(l => (
               <Chip key={l} label={l} />
             ))}
           </View>

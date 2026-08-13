@@ -12,7 +12,7 @@ const RootStack = () => {
 
 
   useEffect(() => {
-  storage.clearAll()
+  // storage.clearAll()
 
   }, [])
   

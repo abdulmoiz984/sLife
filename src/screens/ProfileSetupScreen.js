@@ -1,116 +1,380 @@
-import React, { useMemo, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { SafeAreaWrapper, Typography } from '../atomComponents';
-import { Button, TextField, RegisterProgressBar } from '../components';
-import { Icon, Chip, Overline, UploadTile } from '../components/slife';
-import { COLORS } from '../globalStyle/Theme';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  availabilityOptions,
-  contactMethods,
-  goals,
-  industries,
-  interests,
-  lookingForOptions,
-  people,
-  professionalRoles,
-} from '../constants/mockData';
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { useQueryClient } from '@tanstack/react-query';
+//------------------
+import { SafeAreaWrapper, Typography } from '../atomComponents';
+import {
+  Button,
+  TextField,
+  RegisterProgressBar,
+  ScreenOverlayLoader,
+} from '../components';
+import {
+  Icon,
+  Chip,
+  Overline,
+  UploadTile,
+  EducationsEditor,
+} from '../components/slife';
+import { COLORS, RADIUS } from '../globalStyle/Theme';
+import { useCustomQuery } from '../query/useCustomQuery';
+import { useCustomMutation } from '../query/useCustomMutation';
+import {
+  getProfile,
+  getProfileOptions,
+  updateBasicInfo,
+  updateProfessionalInfo,
+  updateOrganization,
+  updateVerificationDocuments,
+  updateBioInterests,
+  updateNetworkingGoals,
+} from '../api/profileService';
+import { setProfile } from '../redux/slices/appSlice';
+import {
+  digitsOnly,
+  formatBackendErrors,
+  maskUsPhoneWithCode,
+  showMessage,
+} from '../utils';
+import { pickUploadAsset, pickPdfDocument } from '../helpers/pickMedia';
 
 const STEPS = [
   'Basic Information',
   'Professional Information',
-  'Skills & Expertise',
-  'Portfolio & Documents',
-  'Contact & Online Presence',
-  'Business Information',
-  'Preferences & Goals',
+  'Organization',
+  'Verification Documents',
+  'Bio & Interests',
+  'Networking Goals',
 ];
 
+const emptyOptions = {
+  industries: [],
+  professional_roles: [],
+  organization_sizes: [],
+  interests: [],
+  networking_goals: [],
+  verification_document_types: [],
+};
+
+/**
+ * Edit Profile — same Module B endpoints as onboarding VerifyScreen,
+ * for users who already completed profile.
+ */
 const ProfileSetupScreen = ({ navigation }) => {
-  const me = people[1];
+  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
+  const reduxUser = useSelector(state => state.app.user);
+
   const [step, setStep] = useState(0);
-  const [skillInput, setSkillInput] = useState('');
-  const [form, setForm] = useState({
-    name: me.name,
-    headline: me.headline,
-    bio: me.bio,
-    shortIntro: me.shortIntro ?? '',
-    videoIntro: !!me.videoIntro,
-    coverPhoto: !!me.cover,
-    profilePhoto: !!me.avatar,
-    currentPosition: me.currentPosition,
-    company: me.company,
-    industry: me.industry,
-    yearsExperience: String(me.yearsExperience ?? ''),
-    roleType: '',
-    experienceRole: me.experience?.[0]?.role ?? '',
-    experienceCompany: me.experience?.[0]?.company ?? '',
-    experiencePeriod: me.experience?.[0]?.period ?? '',
-    educationSchool: me.education?.[0]?.school ?? '',
-    educationDegree: me.education?.[0]?.degree ?? '',
-    educationField: me.education?.[0]?.field ?? '',
-    educationPeriod: me.education?.[0]?.period ?? '',
-    certification: me.certifications?.[0]?.name ?? '',
-    license: me.licenses?.[0]?.name ?? '',
-    highlight: me.highlights?.[0] ?? '',
-    award: me.awards?.[0] ?? '',
-    skills: me.skills ?? [],
-    specializations: (me.specializations ?? []).join(', '),
-    interests: me.interests ?? [],
-    networkingGoals: me.networkingGoals ?? [],
-    languages: (me.languages ?? []).join(', '),
-    portfolioLabel: me.portfolioLinks?.[0]?.label ?? '',
-    portfolioUrl: me.portfolioLinks?.[0]?.url ?? '',
-    projectTitle: me.projects?.[0]?.title ?? '',
-    projectDescription: me.projects?.[0]?.description ?? '',
-    resumeUploaded: me.documents?.some(d => d.category === 'resume') ?? false,
-    certificateUploaded: me.documents?.some(d => d.category === 'certificate') ?? false,
-    businessDocUploaded: me.documents?.some(d => d.category === 'business') ?? false,
-    educationDocUploaded: me.documents?.some(d => d.category === 'education') ?? false,
-    website: me.website ?? '',
-    linkedin: me.linkedin ?? '',
-    facebook: '',
-    instagram: me.instagram ?? '',
-    youtube: '',
-    businessName: me.business?.name ?? '',
-    businessCategory: me.business?.category ?? '',
-    businessAddress: me.business?.address ?? '',
-    businessPhone: me.business?.phone ?? '',
-    businessEmail: me.business?.email ?? '',
-    availability: me.availability ?? '',
-    lookingFor: me.lookingFor ?? [],
-    preferredContact: me.preferredContact ?? '',
-    city: me.city ?? '',
-    state: me.state ?? '',
-    country: me.country ?? '',
-    timezone: me.timezone ?? '',
+  const [hydrated, setHydrated] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [fullName, setFullName] = useState(reduxUser?.full_name || '');
+  const [phone, setPhone] = useState('');
+  const [location, setLocation] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
+
+  const [title, setTitle] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [years, setYears] = useState('');
+  const [role, setRole] = useState('');
+
+  const [company, setCompany] = useState('');
+  const [orgSize, setOrgSize] = useState('');
+  const [website, setWebsite] = useState('');
+
+  const [linkedin, setLinkedin] = useState('');
+  const [docFiles, setDocFiles] = useState({});
+
+  const [bio, setBio] = useState('');
+  const [selectedInterests, setSelectedInterests] = useState([]);
+  const [selectedGoals, setSelectedGoals] = useState([]);
+
+  const {
+    data: optionsRes,
+    isLoading: optionsLoading,
+    isError: optionsError,
+  } = useCustomQuery({
+    queryKey: ['profileOptions'],
+    queryFn: getProfileOptions,
   });
 
-  const set = (k, v) => setForm(s => ({ ...s, [k]: v }));
-  const toggleIn = (k, v) => {
-    const arr = form[k] || [];
-    set(k, arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
+  const { data: profileRes, isLoading: profileLoading } = useCustomQuery({
+    queryKey: ['profile', 'me'],
+    queryFn: getProfile,
+  });
+
+  const options = optionsRes?.options || emptyOptions;
+
+  const applyProfile = profile => {
+    if (!profile) return;
+    dispatch(setProfile(profile));
+
+    const b = profile.basic_info || {};
+    setFullName(b.full_name || reduxUser?.full_name || '');
+    setPhone(digitsOnly(b.phone_number || ''));
+    setLocation(b.location || '');
+    setPhotoUrl(b.profile_photo_url || null);
+
+    const p = profile.professional_info || {};
+    setTitle(p.professional_title || '');
+    setIndustry(p.industry || '');
+    setYears(
+      p.years_of_experience != null ? String(p.years_of_experience) : '',
+    );
+    setRole(p.professional_role || '');
+
+    const o = profile.organization || {};
+    setCompany(o.company_name || '');
+    setOrgSize(o.organization_size || '');
+    setWebsite(o.website || '');
+
+    const v = profile.verification || {};
+    setLinkedin(v.linkedin_or_portfolio_url || '');
+
+    const bi = profile.bio_interests || {};
+    setBio(bi.bio || '');
+    setSelectedInterests(
+      (bi.interests || []).map(i => (typeof i === 'string' ? i : i.value)),
+    );
+    setSelectedGoals(
+      (profile.networking_goals || []).map(g =>
+        typeof g === 'string' ? g : g.value,
+      ),
+    );
   };
-  const addSkill = () => {
-    const value = skillInput.trim();
-    if (!value || form.skills.includes(value)) return;
-    set('skills', [...form.skills, value]);
-    setSkillInput('');
+
+  useEffect(() => {
+    if (hydrated || !profileRes?.success || !profileRes?.profile) return;
+    applyProfile(profileRes.profile);
+    setHydrated(true);
+  }, [profileRes, hydrated]);
+
+  const toggleValue = (arr, setArr, value) => {
+    setArr(arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value]);
   };
+
+  const optionsReadyForStep = useMemo(() => {
+    switch (step) {
+      case 1:
+        return (
+          options.industries.length > 0 &&
+          options.professional_roles.length > 0
+        );
+      case 2:
+        return true;
+      case 4:
+        return options.interests.length > 0;
+      case 5:
+        return options.networking_goals.length > 0;
+      default:
+        return true;
+    }
+  }, [step, options]);
 
   const canContinue = useMemo(() => {
     switch (step) {
       case 0:
-        return !!(form.name && form.headline);
+        return !!(fullName.trim() && phone.trim() && location.trim());
       case 1:
-        return !!(form.currentPosition && form.industry);
+        return !!(
+          title.trim() &&
+          industry &&
+          years !== '' &&
+          !Number.isNaN(Number(years)) &&
+          role
+        );
       case 2:
-        return form.skills.length > 0;
-      default:
         return true;
+      case 3:
+        return !!linkedin.trim();
+      case 4:
+        return selectedInterests.length >= 2;
+      case 5:
+        return selectedGoals.length >= 1;
+      default:
+        return false;
     }
-  }, [step, form]);
+  }, [
+    step,
+    fullName,
+    phone,
+    location,
+    title,
+    industry,
+    years,
+    role,
+    linkedin,
+    selectedInterests,
+    selectedGoals,
+  ]);
 
-  const finish = () => navigation.replace('MainTabs', { screen: 'ProfileTab' });
+  const handleApiError = err => {
+    const response = err?.response;
+    const parsed = formatBackendErrors(response?.data?.errors);
+    const firstFieldError = Object.values(parsed)[0];
+    showMessage({
+      type: 'danger',
+      message:
+        firstFieldError ||
+        response?.data?.message ||
+        'Could not save this step. Please try again.',
+    });
+  };
+
+  const afterSave = async (response, nextStepIndex, { finish } = {}) => {
+    if (response?.profile) {
+      dispatch(setProfile(response.profile));
+      queryClient.setQueryData(['profile', 'me'], {
+        success: true,
+        profile: response.profile,
+      });
+      queryClient.setQueryData(['profile'], {
+        success: true,
+        profile: response.profile,
+      });
+    }
+    await queryClient.invalidateQueries({ queryKey: ['profile'] });
+
+    showMessage({
+      type: 'success',
+      message: response?.message || 'Saved.',
+    });
+
+    if (finish) {
+      navigation.goBack();
+      return;
+    }
+    setStep(nextStepIndex);
+  };
+
+  const { mutateAsync: saveBasic } = useCustomMutation({
+    mutationFn: updateBasicInfo,
+  });
+  const { mutateAsync: saveProfessional } = useCustomMutation({
+    mutationFn: updateProfessionalInfo,
+  });
+  const { mutateAsync: saveOrganization } = useCustomMutation({
+    mutationFn: updateOrganization,
+  });
+  const { mutateAsync: saveVerification } = useCustomMutation({
+    mutationFn: updateVerificationDocuments,
+  });
+  const { mutateAsync: saveBio } = useCustomMutation({
+    mutationFn: updateBioInterests,
+  });
+  const { mutateAsync: saveGoals } = useCustomMutation({
+    mutationFn: updateNetworkingGoals,
+  });
+
+  const pickPhoto = async () => {
+    const asset = await pickUploadAsset({ mediaType: 'photo' });
+    if (asset) {
+      setPhoto(asset);
+      setPhotoUrl(asset.uri);
+    }
+  };
+
+  const pickDoc = async docValue => {
+    try {
+      const asset = await pickPdfDocument();
+      if (asset) {
+        setDocFiles(prev => ({ ...prev, [docValue]: asset }));
+      }
+    } catch (_) {
+      showMessage({
+        type: 'danger',
+        message: 'Could not open the PDF picker. Please try again.',
+      });
+    }
+  };
+
+  const submitStep = async () => {
+    if (saving) return;
+    if (!optionsReadyForStep && step !== 0 && step !== 2 && step !== 3) {
+      showMessage({
+        type: 'danger',
+        message:
+          'Profile options are not available from the server yet. Please try again later.',
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (step === 0) {
+        const body = {
+          full_name: fullName.trim(),
+          phone_number: maskUsPhoneWithCode(phone).trim(),
+          location: location.trim(),
+        };
+        if (photo) body.profile_photo = photo;
+        const res = await saveBasic(body);
+        await afterSave(res, 1);
+      } else if (step === 1) {
+        const res = await saveProfessional({
+          professional_title: title.trim(),
+          industry,
+          years_of_experience: Number(years),
+          professional_role: role,
+        });
+        await afterSave(res, 2);
+      } else if (step === 2) {
+        const res = await saveOrganization({
+          company_name: company.trim(),
+          organization_size: orgSize || undefined,
+          website: website.trim() || undefined,
+        });
+        await afterSave(res, 3);
+      } else if (step === 3) {
+        const body = {
+          linkedin_or_portfolio_url: linkedin.trim(),
+          ...docFiles,
+        };
+        const res = await saveVerification(body);
+        await afterSave(res, 4);
+      } else if (step === 4) {
+        const res = await saveBio({
+          bio: bio.trim(),
+          interests: selectedInterests,
+        });
+        await afterSave(res, 5);
+      } else if (step === 5) {
+        const res = await saveGoals({
+          networking_goals: selectedGoals,
+        });
+        await afterSave(res, 5, { finish: true });
+      }
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const skipOrganization = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await saveOrganization({});
+      await afterSave(res, 3);
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const bootLoading = optionsLoading || profileLoading;
 
   return (
     <SafeAreaWrapper keyboardAvoid bgColor={COLORS.background}>
@@ -133,9 +397,12 @@ const ProfileSetupScreen = ({ navigation }) => {
             color={COLORS.mute}
             textTransform="uppercase"
             style={styles.track}>
-            Profile setup
+            Edit profile
           </Typography>
-          <Pressable onPress={finish} hitSlop={8}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            disabled={saving}>
             <Typography
               fixed
               size={11}
@@ -143,7 +410,7 @@ const ProfileSetupScreen = ({ navigation }) => {
               color={COLORS.primary}
               textTransform="uppercase"
               style={styles.trackSmall}>
-              Save
+              Done
             </Typography>
           </Pressable>
         </View>
@@ -151,355 +418,308 @@ const ProfileSetupScreen = ({ navigation }) => {
         <Overline style={styles.kicker}>
           Step {step + 1} of {STEPS.length}
         </Overline>
-        <Typography fixed size={22} fFamily="spaceGroteskBold700" color={COLORS.foreground} mT={4}>
+        <Typography
+          fixed
+          size={22}
+          fFamily="spaceGroteskBold700"
+          color={COLORS.foreground}
+          mT={4}>
           {STEPS[step]}
         </Typography>
         <Typography fixed size={13} color={COLORS.body} mT={8}>
-          Built for every professional — developers, designers, doctors, lawyers, students,
-          freelancers, and more.
+          Updates sync to your live profile. Only fields supported by the API
+          are editable here.
         </Typography>
       </View>
 
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.body}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        {step === 0 && (
-          <>
-            <View style={styles.photoWrap}>
-              <Pressable
-                onPress={() => set('profilePhoto', !form.profilePhoto)}
-                style={styles.photoBtn}>
-                <Icon.Camera size={24} color={COLORS.primary} />
-                <Typography
-                  fixed
-                  size={10}
-                  fFamily="interSemiBold600"
-                  color={COLORS.primary}
-                  textTransform="uppercase"
-                  textAlign="center"
-                  mT={4}
-                  style={styles.track}>
-                  {form.profilePhoto ? 'Photo added' : 'Profile photo'}
-                </Typography>
-              </Pressable>
-            </View>
-            <UploadTile
-              label="Cover photo / banner"
-              done={form.coverPhoto}
-              onToggle={() => set('coverPhoto', !form.coverPhoto)}
-            />
-            <TextField label="Full name" value={form.name} onChangeText={v => set('name', v)} placeholder="Your full name" />
-            <TextField
-              label="Professional headline / title"
-              value={form.headline}
-              onChangeText={v => set('headline', v)}
-              placeholder="e.g. Web Developer · React & Node.js"
-            />
-            <TextField
-              label="Professional biography"
-              value={form.bio}
-              onChangeText={v => set('bio', v)}
-              placeholder="Share your background, strengths, and what you do professionally."
-              multiline
-              maxLength={800}
-            />
-            <TextField
-              label="Short introduction"
-              value={form.shortIntro}
-              onChangeText={v => set('shortIntro', v)}
-              placeholder="A one-line intro shown under your name"
-              multiline
-            />
-            <UploadTile
-              label="Video introduction"
-              done={form.videoIntro}
-              onToggle={() => set('videoIntro', !form.videoIntro)}
-            />
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-            <TextField
-              label="Current position"
-              value={form.currentPosition}
-              onChangeText={v => set('currentPosition', v)}
-              placeholder="e.g. Software Engineer, Pharmacist, Student"
-            />
-            <TextField
-              label="Company / organization"
-              value={form.company}
-              onChangeText={v => set('company', v)}
-              placeholder="Company, clinic, firm, school, or Freelance"
-            />
-            <Typography
-              fixed
-              size={11}
-              fFamily="interSemiBold600"
-              color={COLORS.mute}
-              textTransform="uppercase"
-              mB={8}
-              style={styles.track}>
-              Industry
-            </Typography>
-            <View style={styles.chips}>
-              {industries.map(i => (
-                <Chip
-                  key={i}
-                  label={i}
-                  active={form.industry === i}
-                  onPress={() => set('industry', i)}
-                />
-              ))}
-            </View>
-            <TextField
-              label="Years of experience"
-              value={form.yearsExperience}
-              onChangeText={v => set('yearsExperience', v)}
-              keyboardType="number-pad"
-              placeholder="e.g. 5"
-            />
-            <Typography
-              fixed
-              size={11}
-              fFamily="interSemiBold600"
-              color={COLORS.mute}
-              textTransform="uppercase"
-              mB={8}
-              style={styles.track}>
-              Professional role type
-            </Typography>
-            <View style={styles.chips}>
-              {professionalRoles.map(r => (
-                <Chip
-                  key={r}
-                  label={r}
-                  active={form.roleType === r}
-                  onPress={() => set('roleType', r)}
-                />
-              ))}
-            </View>
-
-            <View style={styles.block}>
+      {bootLoading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Typography fixed size={13} color={COLORS.body} mT={12}>
+            Loading profile…
+          </Typography>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          {(optionsError ||
+            (step !== 0 &&
+              step !== 3 &&
+              step !== 2 &&
+              !optionsReadyForStep)) && (
+            <View style={styles.warnBox}>
               <Typography
                 fixed
-                size={12}
+                size={13}
+                color={COLORS.destructive}
+                LineHeight={18}>
+                Server returned empty profile options for this step. See
+                docs/api-issues.md.
+              </Typography>
+            </View>
+          )}
+
+          {step === 0 && (
+            <>
+              <Pressable onPress={pickPhoto} style={styles.photoWrap}>
+                {photoUrl ? (
+                  <Image source={{ uri: photoUrl }} style={styles.photoImg} />
+                ) : (
+                  <View style={styles.photoBtn}>
+                    <Icon.Camera size={24} color={COLORS.primary} />
+                    <Typography
+                      fixed
+                      size={10}
+                      fFamily="interSemiBold600"
+                      color={COLORS.primary}
+                      textTransform="uppercase"
+                      mT={4}
+                      style={styles.track}>
+                      Profile photo
+                    </Typography>
+                  </View>
+                )}
+              </Pressable>
+              <TextField
+                label="Full name"
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Your full name"
+                isRequired
+              />
+              <TextField
+                label="Phone"
+                value={maskUsPhoneWithCode(phone)}
+                onChangeText={text => setPhone(digitsOnly(text))}
+                placeholder="+1 555-123-4567"
+                keyboardType="phone-pad"
+                isRequired
+              />
+              <TextField
+                label="Location"
+                value={location}
+                onChangeText={setLocation}
+                placeholder="City, State"
+                isRequired
+              />
+            </>
+          )}
+
+          {step === 1 && (
+            <>
+              <TextField
+                label="Professional title"
+                value={title}
+                onChangeText={setTitle}
+                placeholder="e.g. Software Engineer"
+                isRequired
+              />
+              <Typography
+                fixed
+                size={11}
                 fFamily="interSemiBold600"
                 color={COLORS.mute}
                 textTransform="uppercase"
-                mB={16}
+                mB={8}
                 style={styles.track}>
-                Professional experience (add entries)
+                Industry
               </Typography>
+              <View style={styles.chips}>
+                {options.industries.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={industry === item.value}
+                    onPress={() => setIndustry(item.value)}
+                  />
+                ))}
+              </View>
               <TextField
-                label="Role / title"
-                value={form.experienceRole}
-                onChangeText={v => set('experienceRole', v)}
-                placeholder="Role title"
+                label="Years of experience"
+                value={years}
+                onChangeText={setYears}
+                keyboardType="number-pad"
+                placeholder="e.g. 5"
+                isRequired
               />
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.mute}
+                textTransform="uppercase"
+                mB={8}
+                style={styles.track}>
+                Professional role
+              </Typography>
+              <View style={styles.chips}>
+                {options.professional_roles.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={role === item.value}
+                    onPress={() => setRole(item.value)}
+                  />
+                ))}
+              </View>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
               <TextField
                 label="Company / organization"
-                value={form.experienceCompany}
-                onChangeText={v => set('experienceCompany', v)}
-                placeholder="Organization"
+                placeholder="Company, clinic, firm, school, or Freelance"
+                value={company}
+                onChangeText={setCompany}
               />
-              <TextField
-                label="Period"
-                value={form.experiencePeriod}
-                onChangeText={v => set('experiencePeriod', v)}
-                placeholder="2021 — Present"
-              />
-            </View>
-
-            <View style={styles.block}>
               <Typography
                 fixed
-                size={12}
+                size={11}
                 fFamily="interSemiBold600"
                 color={COLORS.mute}
                 textTransform="uppercase"
-                mB={16}
+                mB={8}
                 style={styles.track}>
-                Education (add entries)
+                Organization size
               </Typography>
+              <View style={styles.chips}>
+                {options.organization_sizes.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={orgSize === item.value}
+                    onPress={() => setOrgSize(item.value)}
+                  />
+                ))}
+              </View>
               <TextField
-                label="School / university"
-                value={form.educationSchool}
-                onChangeText={v => set('educationSchool', v)}
+                label="Website"
+                placeholder="https://"
+                value={website}
+                onChangeText={setWebsite}
+                autoCapitalize="none"
+                keyboardType="url"
               />
+              <Pressable onPress={skipOrganization} style={styles.skip}>
+                <Typography
+                  fixed
+                  size={12}
+                  fFamily="interSemiBold600"
+                  color={COLORS.mute}
+                  textTransform="uppercase"
+                  style={styles.trackSmall}>
+                  Skip for now
+                </Typography>
+              </Pressable>
+              <View style={styles.eduBlock}>
+                <EducationsEditor compact />
+              </View>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
               <TextField
-                label="Degree"
-                value={form.educationDegree}
-                onChangeText={v => set('educationDegree', v)}
-                placeholder="B.S., M.D., Diploma…"
+                label="LinkedIn or portfolio URL"
+                placeholder="https://linkedin.com/in/you"
+                value={linkedin}
+                onChangeText={setLinkedin}
+                autoCapitalize="none"
+                keyboardType="url"
+                isRequired
               />
+              <UploadTile
+                label="Employee Reference Letter"
+                required={false}
+                subtitle="Tap to upload PDF"
+                done={!!docFiles.employee_reference_letter}
+                fileName={docFiles.employee_reference_letter?.fileName}
+                onPress={() => pickDoc('employee_reference_letter')}
+              />
+            </>
+          )}
+
+          {step === 4 && (
+            <>
               <TextField
-                label="Field of study"
-                value={form.educationField}
-                onChangeText={v => set('educationField', v)}
+                label="Professional bio"
+                placeholder="A short summary of who you are and what you do."
+                value={bio}
+                onChangeText={setBio}
+                multiline
+                maxLength={500}
               />
-              <TextField
-                label="Period"
-                value={form.educationPeriod}
-                onChangeText={v => set('educationPeriod', v)}
-                placeholder="2018 — 2022"
-              />
-            </View>
-
-            <TextField
-              label="Certification"
-              value={form.certification}
-              onChangeText={v => set('certification', v)}
-              placeholder="Add a certification"
-            />
-            <TextField
-              label="License (optional)"
-              value={form.license}
-              onChangeText={v => set('license', v)}
-              placeholder="Professional license if applicable"
-            />
-            <TextField
-              label="Career highlight / achievement"
-              value={form.highlight}
-              onChangeText={v => set('highlight', v)}
-            />
-            <TextField
-              label="Award / recognition"
-              value={form.award}
-              onChangeText={v => set('award', v)}
-            />
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <TextField
-              label="Skills & expertise"
-              value={skillInput}
-              onChangeText={setSkillInput}
-              placeholder="Add a skill and press Enter"
-              onSubmitEditing={addSkill}
-              mB={8}
-            />
-            <Button label="Add" onPress={addSkill} mb={12} />
-            <View style={styles.chips}>
-              {form.skills.map(s => (
-                <Chip key={s} label={s} active onPress={() => toggleIn('skills', s)} />
-              ))}
-            </View>
-            <TextField
-              label="Areas of specialization"
-              value={form.specializations}
-              onChangeText={v => set('specializations', v)}
-              placeholder="Comma-separated, e.g. Mobile UX, Tax Law"
-            />
-            <Typography fixed size={11} fFamily="interSemiBold600" color={COLORS.mute} textTransform="uppercase" mB={8} style={styles.track}>
-              Professional interests
-            </Typography>
-            <View style={styles.chips}>
-              {interests.map(i => (
-                <Chip key={i} label={i} active={form.interests.includes(i)} onPress={() => toggleIn('interests', i)} />
-              ))}
-            </View>
-            <Typography fixed size={11} fFamily="interSemiBold600" color={COLORS.mute} textTransform="uppercase" mB={8} style={styles.track}>
-              Networking goals
-            </Typography>
-            <View style={styles.chips}>
-              {goals.map(g => (
-                <Chip key={g} label={g} active={form.networkingGoals.includes(g)} onPress={() => toggleIn('networkingGoals', g)} />
-              ))}
-            </View>
-            <TextField label="Languages" value={form.languages} onChangeText={v => set('languages', v)} />
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <TextField label="Portfolio link label" value={form.portfolioLabel} onChangeText={v => set('portfolioLabel', v)} placeholder="GitHub, Behance, Portfolio…" />
-            <TextField label="Portfolio URL" value={form.portfolioUrl} onChangeText={v => set('portfolioUrl', v)} placeholder="https://" />
-            <TextField label="Featured project title" value={form.projectTitle} onChangeText={v => set('projectTitle', v)} />
-            <TextField label="Project showcase description" value={form.projectDescription} onChangeText={v => set('projectDescription', v)} multiline />
-            <UploadTile label="Resume / CV" done={form.resumeUploaded} onToggle={() => set('resumeUploaded', !form.resumeUploaded)} />
-            <UploadTile label="Certificates" done={form.certificateUploaded} onToggle={() => set('certificateUploaded', !form.certificateUploaded)} />
-            <UploadTile label="Business documents" done={form.businessDocUploaded} onToggle={() => set('businessDocUploaded', !form.businessDocUploaded)} />
-            <UploadTile label="Educational documents" done={form.educationDocUploaded} onToggle={() => set('educationDocUploaded', !form.educationDocUploaded)} />
-          </>
-        )}
-
-        {step === 4 && (
-          <>
-            <TextField label="Website" value={form.website} onChangeText={v => set('website', v)} placeholder="https://" />
-            <TextField label="LinkedIn profile" value={form.linkedin} onChangeText={v => set('linkedin', v)} />
-            <TextField label="Facebook profile" value={form.facebook} onChangeText={v => set('facebook', v)} />
-            <TextField label="Instagram profile" value={form.instagram} onChangeText={v => set('instagram', v)} />
-            <TextField label="YouTube channel" value={form.youtube} onChangeText={v => set('youtube', v)} />
-          </>
-        )}
-
-        {step === 5 && (
-          <>
-            <Typography fixed size={13} color={COLORS.body} mB={16}>
-              Optional — add business details if you own or represent an organization.
-            </Typography>
-            <TextField label="Business name" value={form.businessName} onChangeText={v => set('businessName', v)} />
-            <TextField label="Business category" value={form.businessCategory} onChangeText={v => set('businessCategory', v)} />
-            <TextField label="Business address" value={form.businessAddress} onChangeText={v => set('businessAddress', v)} />
-            <TextField label="Business phone" value={form.businessPhone} onChangeText={v => set('businessPhone', v)} />
-            <TextField label="Business email" value={form.businessEmail} onChangeText={v => set('businessEmail', v)} keyboardType="email-address" />
-            <Pressable onPress={() => setStep(step + 1)} style={styles.skip}>
-              <Typography fixed size={12} fFamily="interSemiBold600" color={COLORS.mute} textTransform="uppercase" style={styles.trackSmall}>
-                Skip for now
+              <Typography fixed size={11} color={COLORS.mute} mB={16}>
+                {(bio ?? '').length}/500
               </Typography>
-            </Pressable>
-          </>
-        )}
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.mute}
+                textTransform="uppercase"
+                mB={8}
+                style={styles.track}>
+                Professional interests — select at least 2
+              </Typography>
+              <View style={styles.chips}>
+                {options.interests.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={selectedInterests.includes(item.value)}
+                    onPress={() =>
+                      toggleValue(
+                        selectedInterests,
+                        setSelectedInterests,
+                        item.value,
+                      )
+                    }
+                  />
+                ))}
+              </View>
+            </>
+          )}
 
-        {step === 6 && (
-          <>
-            <Typography fixed size={11} fFamily="interSemiBold600" color={COLORS.mute} textTransform="uppercase" mB={8} style={styles.track}>
-              Availability status
-            </Typography>
-            <View style={styles.chips}>
-              {availabilityOptions.map(o => (
-                <Chip key={o.value} label={o.label} active={form.availability === o.value} onPress={() => set('availability', o.value)} />
-              ))}
-            </View>
-            <Typography fixed size={11} fFamily="interSemiBold600" color={COLORS.mute} textTransform="uppercase" mB={8} style={styles.track}>
-              Looking for
-            </Typography>
-            <View style={styles.chips}>
-              {lookingForOptions.map(o => (
-                <Chip key={o} label={o} active={form.lookingFor.includes(o)} onPress={() => toggleIn('lookingFor', o)} />
-              ))}
-            </View>
-            <Typography fixed size={11} fFamily="interSemiBold600" color={COLORS.mute} textTransform="uppercase" mB={8} style={styles.track}>
-              Preferred contact method
-            </Typography>
-            <View style={styles.chips}>
-              {contactMethods.map(m => (
-                <Chip key={m} label={m} active={form.preferredContact === m} onPress={() => set('preferredContact', m)} />
-              ))}
-            </View>
-            <TextField label="City" value={form.city} onChangeText={v => set('city', v)} />
-            <TextField label="State / region" value={form.state} onChangeText={v => set('state', v)} />
-            <TextField label="Country" value={form.country} onChangeText={v => set('country', v)} />
-            <TextField label="Time zone" value={form.timezone} onChangeText={v => set('timezone', v)} />
-          </>
-        )}
-      </ScrollView>
+          {step === 5 && (
+            <>
+              <Typography
+                fixed
+                size={14}
+                color={COLORS.body}
+                mB={16}
+                LineHeight={20}>
+                Tell us what you are looking for. We will tailor your matches.
+              </Typography>
+              <View style={styles.chips}>
+                {options.networking_goals.map(item => (
+                  <Chip
+                    key={item.value}
+                    label={item.label}
+                    active={selectedGoals.includes(item.value)}
+                    onPress={() =>
+                      toggleValue(selectedGoals, setSelectedGoals, item.value)
+                    }
+                  />
+                ))}
+              </View>
+            </>
+          )}
+        </ScrollView>
+      )}
 
       <View style={styles.footer}>
         <Button
           label={step === STEPS.length - 1 ? 'Save profile' : 'Continue'}
-          disabled={!canContinue}
-          onPress={() => {
-            if (step === STEPS.length - 1) finish();
-            else setStep(step + 1);
-          }}
+          disabled={!canContinue || bootLoading || !optionsReadyForStep || saving}
+          onPress={submitStep}
         />
       </View>
+      <ScreenOverlayLoader visible={saving || bootLoading} />
     </SafeAreaWrapper>
   );
 };
@@ -533,6 +753,19 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     paddingBottom: 40,
   },
+  loader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warnBox: {
+    borderWidth: 1,
+    borderColor: COLORS.destructive,
+    backgroundColor: 'rgba(229,72,77,0.08)',
+    borderRadius: RADIUS.md,
+    padding: 12,
+    marginBottom: 16,
+  },
   photoWrap: { alignItems: 'center', paddingVertical: 8, marginBottom: 8 },
   photoBtn: {
     width: 112,
@@ -545,9 +778,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 8,
   },
+  photoImg: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  block: {
-    marginTop: 8,
+  eduBlock: {
+    marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
