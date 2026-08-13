@@ -8,6 +8,7 @@ import TopBar from './TopBar';
 import UploadTile from './UploadTile';
 import FullProfileView from './FullProfileView';
 import ShimmerBlock from './ShimmerBlock';
+import EducationsEditor from './EducationsEditor';
 
 export {
   Icon,
@@ -20,4 +21,5 @@ export {
   UploadTile,
   FullProfileView,
   ShimmerBlock,
+  EducationsEditor,
 };

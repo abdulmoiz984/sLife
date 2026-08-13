@@ -23,4 +23,9 @@ export const ENDPOINTS = {
   PROFILE_VERIFICATION_DOCUMENTS: 'profile/verification-documents',
   PROFILE_BIO_INTERESTS: 'profile/bio-interests',
   PROFILE_NETWORKING_GOALS: 'profile/networking-goals',
+
+  // --- Educations (Module C) ---
+  EDUCATIONS: 'profile/educations',
+  EDUCATION: id => `profile/educations/${id}`,
+  EDUCATIONS_SYNC: 'profile/educations/sync',
 };

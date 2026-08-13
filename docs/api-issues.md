@@ -85,6 +85,18 @@ Update this file when new mismatches appear. Mobile team will keep Module A+ not
 
 Not fully exercised yet (blocked by empty options): professional-info, organization, verification-documents, bio-interests, networking-goals.
 
+### Module C — Educations
+
+| Endpoint | Result |
+|----------|--------|
+| `GET /profile/educations` | `200` |
+| `POST /profile/educations` | `201` — creates education |
+| `PUT /profile/educations/{id}` | `200` — updates education |
+| `PUT /profile/educations/sync` | `200` — replace-all list |
+| `DELETE /profile/educations/{id}` | `200` — removes education |
+
+No Module C blockers found in live probes (2026-08-13).
+
 ---
 
 ## Test account (mobile QA)

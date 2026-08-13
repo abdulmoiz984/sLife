@@ -17,6 +17,7 @@ import {
   SubscriptionScreen,
   ProfileScreen,
   ProfileDetailsScreen,
+  EducationsScreen,
 } from '../screens';
 import TabNavigator from './TabNavigator';
 import { COLORS } from '../globalStyle/Theme';
@@ -58,6 +59,7 @@ const StackNavigator = () => {
       <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} />
       <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
       <Stack.Screen name="ProfileDetailsScreen" component={ProfileDetailsScreen} />
+      <Stack.Screen name="EducationsScreen" component={EducationsScreen} />
     </Stack.Navigator>
   );
 };

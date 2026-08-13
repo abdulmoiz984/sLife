@@ -11,7 +11,13 @@ import { useDispatch, useSelector } from 'react-redux';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField, AppLogo, RegisterProgressBar } from '../../components';
-import { Icon, Chip, Overline, UploadTile } from '../../components/slife';
+import {
+  Icon,
+  Chip,
+  Overline,
+  UploadTile,
+  EducationsEditor,
+} from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { useCustomMutation } from '../../query/useCustomMutation';
@@ -384,11 +390,17 @@ const VerifyScreen = ({ navigation }) => {
           </Typography>
           <View style={styles.successBtns}>
             <Button
-              label="Complete your profile"
-              onPress={() => navigation.replace('ProfileSetupScreen')}
+              label="Add education"
+              onPress={() => navigation.navigate('EducationsScreen')}
             />
             <Button
               type="secondary"
+              label="Complete your profile"
+              onPress={() => navigation.replace('ProfileSetupScreen')}
+              mt={12}
+            />
+            <Button
+              type="outline"
               label="Explore the network"
               onPress={() => navigation.replace('MainTabs')}
               mt={12}
@@ -611,6 +623,10 @@ const VerifyScreen = ({ navigation }) => {
                   Skip for now
                 </Typography>
               </Pressable>
+
+              <View style={styles.eduBlock}>
+                <EducationsEditor compact />
+              </View>
             </>
           )}
 
@@ -811,6 +827,12 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  eduBlock: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
   track: { letterSpacing: 0.88 },
   footer: {

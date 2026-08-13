@@ -15,6 +15,7 @@ const SECTIONS = [
     label: 'Account',
     items: [
       { label: 'Edit Profile', to: 'ProfileSetupScreen' },
+      { label: 'Education', to: 'EducationsScreen' },
       { label: 'Account & Security' },
       { label: 'Verification Status', hint: 'Verified' },
     ],

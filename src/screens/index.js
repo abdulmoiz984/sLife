@@ -14,6 +14,7 @@ import SettingsScreen from './Settings/SettingsScreen';
 import SubscriptionScreen from './Subscription/SubscriptionScreen';
 import ProfileScreen from './Profile/ProfileScreen';
 import ProfileDetailsScreen from './Profile/ProfileDetailsScreen';
+import EducationsScreen from './Profile/EducationsScreen';
 
 export {
   LoginScreen,
@@ -32,4 +33,5 @@ export {
   SubscriptionScreen,
   ProfileScreen,
   ProfileDetailsScreen,
+  EducationsScreen,
 };
