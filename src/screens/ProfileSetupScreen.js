@@ -23,6 +23,7 @@ import {
   Overline,
   UploadTile,
   EducationsEditor,
+  ProfilePhotoSheet,
 } from '../components/slife';
 import { COLORS, RADIUS } from '../globalStyle/Theme';
 import { useCustomQuery } from '../query/useCustomQuery';
@@ -82,6 +83,7 @@ const ProfileSetupScreen = ({ navigation }) => {
   const [location, setLocation] = useState('');
   const [photo, setPhoto] = useState(null);
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
 
   const [title, setTitle] = useState('');
   const [industry, setIndustry] = useState('');
@@ -276,12 +278,26 @@ const ProfileSetupScreen = ({ navigation }) => {
     mutationFn: updateNetworkingGoals,
   });
 
-  const pickPhoto = async () => {
-    const asset = await pickUploadAsset({ mediaType: 'photo' });
-    if (asset) {
-      setPhoto(asset);
-      setPhotoUrl(asset.uri);
-    }
+  const openPhotoSheet = () => setPhotoSheetVisible(true);
+  const closePhotoSheet = () => setPhotoSheetVisible(false);
+
+  const pickPhoto = () => {
+    closePhotoSheet();
+    setTimeout(async () => {
+      const asset = await pickUploadAsset({ mediaType: 'photo' });
+      if (asset) {
+        setPhoto(asset);
+        setPhotoUrl(asset.uri);
+      }
+    }, 250);
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    // Keep remote URL cleared only for newly picked local photo;
+    // if user had server photo, clearing means don't re-upload — revert display to remote on next load.
+    setPhotoUrl(null);
+    closePhotoSheet();
   };
 
   const pickDoc = async docValue => {
@@ -464,7 +480,7 @@ const ProfileSetupScreen = ({ navigation }) => {
 
           {step === 0 && (
             <>
-              <Pressable onPress={pickPhoto} style={styles.photoWrap}>
+              <Pressable onPress={openPhotoSheet} style={styles.photoWrap}>
                 {photoUrl ? (
                   <Image source={{ uri: photoUrl }} style={styles.photoImg} />
                 ) : (
@@ -482,7 +498,24 @@ const ProfileSetupScreen = ({ navigation }) => {
                     </Typography>
                   </View>
                 )}
+                {!!photoUrl && (
+                  <View style={styles.cameraBadge} pointerEvents="none">
+                    <Icon.Camera size={14} color={COLORS.primary} />
+                  </View>
+                )}
               </Pressable>
+              {!!photoUrl && (
+                <Pressable onPress={openPhotoSheet} style={styles.changePhoto}>
+                  <Typography
+                    fixed
+                    size={12}
+                    fFamily="interSemiBold600"
+                    color={COLORS.primary}
+                    textAlign="center">
+                    Change photo
+                  </Typography>
+                </Pressable>
+              )}
               <TextField
                 label="Full name"
                 value={fullName}
@@ -719,6 +752,13 @@ const ProfileSetupScreen = ({ navigation }) => {
           onPress={submitStep}
         />
       </View>
+      <ProfilePhotoSheet
+        visible={photoSheetVisible}
+        onClose={closePhotoSheet}
+        onChooseGallery={pickPhoto}
+        onRemove={removePhoto}
+        canRemove={!!photo || !!photoUrl}
+      />
       <ScreenOverlayLoader visible={saving || bootLoading} />
     </SafeAreaWrapper>
   );
@@ -766,7 +806,11 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
   },
-  photoWrap: { alignItems: 'center', paddingVertical: 8, marginBottom: 8 },
+  photoWrap: {
+    alignSelf: 'center',
+    marginBottom: 8,
+    marginTop: 8,
+  },
   photoBtn: {
     width: 112,
     height: 112,
@@ -776,12 +820,28 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(241,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
   },
   photoImg: {
     width: 112,
     height: 112,
     borderRadius: 56,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.elevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  changePhoto: {
+    marginBottom: 16,
+    paddingVertical: 4,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
   eduBlock: {

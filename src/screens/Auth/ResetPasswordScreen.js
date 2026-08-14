@@ -60,7 +60,7 @@ const ResetPasswordScreen = ({ navigation, route }) => {
         type: 'danger',
         message: 'Session expired. Please request a new OTP.',
       });
-      navigation.navigate('ForgotPasswordScreen');
+      navigation.replace('ForgotPasswordScreen');
       return;
     }
     requestReset({

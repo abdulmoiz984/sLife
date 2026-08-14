@@ -39,7 +39,7 @@ const formatRange = item => {
 /**
  * Module C — list / add / edit / delete educations (ClayMaster query+mutation pattern).
  */
-const EducationsEditor = ({ compact = false }) => {
+const EducationsEditor = ({ compact = false, onDescriptionFocus }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
@@ -301,7 +301,21 @@ const EducationsEditor = ({ compact = false }) => {
             label="Start date"
             placeholder="Select start date"
             value={form.start_date}
-            onChange={set('start_date')}
+            onChange={next => {
+              setForm(prev => {
+                const nextEnd =
+                  prev.end_date &&
+                  next &&
+                  prev.end_date < next
+                    ? ''
+                    : prev.end_date;
+                return {
+                  ...prev,
+                  start_date: next,
+                  end_date: nextEnd,
+                };
+              });
+            }}
             maximumDate={new Date()}
           />
           {!form.is_current && (
@@ -312,7 +326,10 @@ const EducationsEditor = ({ compact = false }) => {
               onChange={set('end_date')}
               minimumDate={
                 form.start_date
-                  ? new Date(form.start_date.replace(/-/g, '/'))
+                  ? (() => {
+                      const [y, m, d] = form.start_date.split('-').map(Number);
+                      return new Date(y, m - 1, d, 12, 0, 0, 0);
+                    })()
                   : undefined
               }
               maximumDate={new Date()}
@@ -342,6 +359,7 @@ const EducationsEditor = ({ compact = false }) => {
             value={form.description}
             onChangeText={set('description')}
             multiline
+            onFocus={() => onDescriptionFocus?.()}
           />
           <Button
             label={editingId ? 'Update education' : 'Save education'}

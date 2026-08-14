@@ -112,6 +112,6 @@ export const onRegisterSuccess = async (response, email, navigation, dispatch) =
     });
 
     await Prefetching();
-    navigation.navigate('VerifyScreen', { email });
+    navigation.replace('VerifyScreen', { email });
   }
 };

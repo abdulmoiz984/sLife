@@ -9,9 +9,16 @@ const SafeAreaWrapper = ({
   contentStyle = {},
   bgColor = COLORS.background,
   keyboardAvoid = false,
+  keyboardVerticalOffset,
   isPadding = false,
 }) => {
   const Wrapper = keyboardAvoid ? KeyboardAvoidingView : React.Fragment;
+  const offset =
+    keyboardVerticalOffset != null
+      ? keyboardVerticalOffset
+      : Platform.OS === 'ios'
+        ? 0
+        : 0;
 
   return (
     <SafeAreaView
@@ -27,9 +34,9 @@ const SafeAreaWrapper = ({
       <Wrapper
         {...(keyboardAvoid
           ? {
-              behavior: Platform.OS === 'ios' ? 'padding' : 'height',
+              behavior: Platform.OS === 'ios' ? 'padding' : undefined,
               style: { flex: 1 },
-              keyboardVerticalOffset: -100,
+              keyboardVerticalOffset: offset,
             }
           : {})}>
         {children}

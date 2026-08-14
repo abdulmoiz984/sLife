@@ -19,11 +19,43 @@ const toYmd = date => {
   return `${y}-${m}-${d}`;
 };
 
+/** Parse YYYY-MM-DD as local calendar date (avoids UTC shift crashes). */
 const parseYmd = value => {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date();
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [y, m, d] = value.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+  const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const startOfDay = date => {
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    12,
+    0,
+    0,
+    0,
+  );
+};
+
+/**
+ * iOS UIDatePicker crashes if `value` is outside [minimumDate, maximumDate]
+ * or if minimumDate > maximumDate. Always clamp before rendering.
+ */
+const clampDate = (date, min, max) => {
+  let d = startOfDay(date) || startOfDay(new Date());
+  const lo = startOfDay(min);
+  const hi = startOfDay(max);
+
+  if (lo && hi && lo.getTime() > hi.getTime()) {
+    // Invalid range — prefer max (usually "today")
+    return hi;
+  }
+  if (lo && d.getTime() < lo.getTime()) d = lo;
+  if (hi && d.getTime() > hi.getTime()) d = hi;
+  return d;
 };
 
 /**
@@ -41,16 +73,37 @@ const DateField = ({
   disabled,
 }) => {
   const [open, setOpen] = useState(false);
-  const selected = useMemo(() => parseYmd(value), [value]);
+
+  const selected = useMemo(() => {
+    const parsed = parseYmd(value);
+    // Empty value: open near the allowed lower bound (start date), not "now",
+    // so end-date pickers don't crash when min > previous default.
+    const fallback = startOfDay(minimumDate) || startOfDay(new Date());
+    return clampDate(parsed || fallback, minimumDate, maximumDate);
+  }, [value, minimumDate, maximumDate]);
+
+  const safeMin = useMemo(() => {
+    const lo = startOfDay(minimumDate);
+    const hi = startOfDay(maximumDate);
+    if (lo && hi && lo.getTime() > hi.getTime()) return hi;
+    return lo || undefined;
+  }, [minimumDate, maximumDate]);
+
+  const safeMax = useMemo(() => {
+    const lo = startOfDay(minimumDate);
+    const hi = startOfDay(maximumDate);
+    if (lo && hi && lo.getTime() > hi.getTime()) return lo;
+    return hi || undefined;
+  }, [minimumDate, maximumDate]);
 
   const onAndroidChange = (event, date) => {
     setOpen(false);
     if (event?.type === 'dismissed' || !date) return;
-    onChange?.(toYmd(date));
+    onChange?.(toYmd(clampDate(date, safeMin, safeMax)));
   };
 
   const onIosChange = (_event, date) => {
-    if (date) onChange?.(toYmd(date));
+    if (date) onChange?.(toYmd(clampDate(date, safeMin, safeMax)));
   };
 
   return (
@@ -59,7 +112,11 @@ const DateField = ({
       <Pressable
         disabled={disabled}
         onPress={() => setOpen(true)}
-        style={[styles.field, error && styles.fieldError, disabled && styles.disabled]}>
+        style={[
+          styles.field,
+          error && styles.fieldError,
+          disabled && styles.disabled,
+        ]}>
         <Typography
           fixed
           size={15}
@@ -79,8 +136,8 @@ const DateField = ({
           mode="date"
           display="default"
           onChange={onAndroidChange}
-          maximumDate={maximumDate}
-          minimumDate={minimumDate}
+          maximumDate={safeMax}
+          minimumDate={safeMin}
         />
       )}
 
@@ -91,6 +148,7 @@ const DateField = ({
           animationType="slide"
           onRequestClose={() => setOpen(false)}>
           <View style={styles.backdrop}>
+            <Pressable style={styles.backdropTap} onPress={() => setOpen(false)} />
             <View style={styles.sheet}>
               <View style={styles.sheetHeader}>
                 <Pressable onPress={() => setOpen(false)} hitSlop={8}>
@@ -119,9 +177,10 @@ const DateField = ({
                 value={selected}
                 mode="date"
                 display="spinner"
+                themeVariant="dark"
                 onChange={onIosChange}
-                maximumDate={maximumDate}
-                minimumDate={minimumDate}
+                maximumDate={safeMax}
+                minimumDate={safeMin}
                 style={styles.iosPicker}
               />
             </View>
@@ -157,6 +216,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  backdropTap: {
+    flex: 1,
   },
   sheet: {
     backgroundColor: COLORS.elevated,

@@ -138,7 +138,7 @@ const LoginScreen = ({ navigation }) => {
             color={COLORS.primary}
             textTransform="uppercase"
             style={styles.track}
-            onPress={() => navigation.navigate('SignupScreen')}>
+            onPress={() => navigation.replace('SignupScreen')}>
             Sign up
           </Typography>
         </Typography>

@@ -10,6 +10,7 @@ const TextField = ({
   value = '',
   onChangeText,
   onBlur,
+  onFocus,
   placeholder = '',
   secureTextEntry = false,
   keyboardType = 'default',
@@ -43,7 +44,10 @@ const TextField = ({
             setIsFocused(false);
             onBlur?.(e);
           }}
-          onFocus={() => setIsFocused(true)}
+          onFocus={e => {
+            setIsFocused(true);
+            onFocus?.(e);
+          }}
           placeholder={placeholder}
           placeholderTextColor={COLORS.mute}
           secureTextEntry={hidePassword}

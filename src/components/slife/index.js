@@ -11,6 +11,7 @@ import ShimmerBlock from './ShimmerBlock';
 import EducationsEditor from './EducationsEditor';
 import ConnectRequestModal from './ConnectRequestModal';
 import ReportMemberModal from './ReportMemberModal';
+import ProfilePhotoSheet from './ProfilePhotoSheet';
 
 export {
   Icon,
@@ -26,4 +27,5 @@ export {
   EducationsEditor,
   ConnectRequestModal,
   ReportMemberModal,
+  ProfilePhotoSheet,
 };

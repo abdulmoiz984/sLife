@@ -36,7 +36,7 @@ const VerifyResetOtpScreen = ({ navigation, route }) => {
         type: 'success',
         message: response?.message || 'OTP verified successfully.',
       });
-      navigation.navigate('ResetPasswordScreen', {
+      navigation.replace('ResetPasswordScreen', {
         email,
         otp: values.otp,
       });

@@ -26,7 +26,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
           response?.message ||
           'If an account exists with that email, a password reset OTP has been sent.',
       });
-      navigation.navigate('VerifyResetOtpScreen', { email: values?.email });
+      navigation.replace('VerifyResetOtpScreen', { email: values?.email });
     },
     onError: response => {
       if (response?.status === 422 && response?.data?.message && !response?.data?.errors) {
