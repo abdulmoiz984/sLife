@@ -1,6 +1,11 @@
-export const logo = require('./Logo.png');
-export const logoColor = require('./Logo.png');
-export const logoWhite = require('./Logo.png');
+// Active brand mark
+export const logo = require('./SLifeLogo.png');
+export const logoColor = require('./SLifeLogo.png');
+export const logoWhite = require('./SLifeLogo.png');
+
+// Legacy mark kept on disk but unused
+export const logoLegacy = require('./Logo.png');
+
 export const onboardBoardroom = require('./onboard-boardroom.jpg');
 export const onboardHandshake = require('./onboard-handshake.jpg');
 export const onboardCharts = require('./onboard-charts.jpg');
