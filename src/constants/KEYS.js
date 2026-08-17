@@ -8,4 +8,5 @@ export const KEYS = {
   LOGIN_TYPE: '@login_type',
   SOCIAL_TOKEN: '@social_token',
   DEVICE_ID: '@slife_device_id',
+  PENDING_PUSH_DATA: '@pending_push_data',
 };

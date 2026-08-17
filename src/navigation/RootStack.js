@@ -6,30 +6,25 @@ import FlashMessage from 'react-native-flash-message';
 import StackNavigator from './StackNavigator';
 import { COLORS } from '../globalStyle/Theme';
 import { navigationRef } from './NavigationService';
-import { storage } from '../api/api';
-import { KEYS } from '../constants';
 import {
+  flushPendingPushRoute,
   notificationListener,
   requestNotificationPermission,
 } from '../utils/notificationHelper';
 
 const RootStack = () => {
-
-
   useEffect(() => {
-    (async () => {
-      const fcmToken = storage.getString(KEYS.FCM_TOKEN);
-      __DEV__ && console.log(' RootStack ~ fcmToken:', fcmToken);
+    requestNotificationPermission();
+    const unsubscribe = notificationListener();
+    return () => unsubscribe?.();
+  }, []);
 
-      if (!fcmToken) {
-        requestNotificationPermission();
-      }
-      notificationListener();
-    })();
-  }, [])
-  
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={flushPendingPushRoute}
+      onStateChange={flushPendingPushRoute}
+    >
       <StatusBar
         animated={true}
         backgroundColor={COLORS.background}

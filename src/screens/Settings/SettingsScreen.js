@@ -10,6 +10,12 @@ import { logout } from '../../api/authService';
 import { handleLogout } from '../../redux/slices/appSlice';
 import { queryClient } from '../../api/api';
 import { showMessage } from '../../utils';
+import {
+  registerCurrentPushToken,
+  sendTestPush,
+  unregisterCurrentPushToken,
+} from '../../api/pushService';
+import { requestNotificationPermission } from '../../utils/notificationHelper';
 
 const SECTIONS = [
   {
@@ -27,6 +33,7 @@ const SECTIONS = [
       { label: 'Privacy Settings' },
       { label: 'Hidden Profile Mode' },
       { label: 'Notification Preferences' },
+      { label: 'Send test notification', action: 'test_push' },
     ],
   },
   {
@@ -54,11 +61,17 @@ const SECTIONS = [
 const SettingsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
 
   const performLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
+      try {
+        await unregisterCurrentPushToken();
+      } catch (err) {
+        console.log('🚀 ~ push unregister err:', err?.response?.data || err);
+      }
       await logout();
     } catch (err) {
       console.log('🚀 ~ logout err:', err?.response?.data || err);
@@ -71,9 +84,40 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
+  const performTestPush = async () => {
+    if (testingPush) return;
+    setTestingPush(true);
+    try {
+      await requestNotificationPermission();
+      await registerCurrentPushToken();
+      const res = await sendTestPush();
+      showMessage({
+        type: 'success',
+        message: res?.message || 'Test push notification processed.',
+      });
+    } catch (err) {
+      const status = err?.response?.status;
+      const apiMessage = err?.response?.data?.message;
+      showMessage({
+        type: 'danger',
+        message:
+          apiMessage ||
+          (status === 422
+            ? 'No registered device. Grant notification permission and try again.'
+            : 'Could not send test notification.'),
+      });
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
   const onItem = item => {
     if (item.action === 'logout') {
       performLogout();
+      return;
+    }
+    if (item.action === 'test_push') {
+      performTestPush();
       return;
     }
     if (item.action === 'report_hint') {
@@ -116,7 +160,10 @@ const SettingsScreen = ({ navigation }) => {
                 <Pressable
                   key={it.label}
                   onPress={() => onItem(it)}
-                  disabled={it.action === 'logout' && loggingOut}
+                  disabled={
+                    (it.action === 'logout' && loggingOut) ||
+                    (it.action === 'test_push' && testingPush)
+                  }
                   style={styles.row}>
                   <Typography
                     fixed
@@ -125,6 +172,8 @@ const SettingsScreen = ({ navigation }) => {
                     color={it.danger ? COLORS.destructive : COLORS.foreground}>
                     {it.action === 'logout' && loggingOut
                       ? 'Logging out…'
+                      : it.action === 'test_push' && testingPush
+                      ? 'Sending…'
                       : it.label}
                   </Typography>
                   <View style={styles.right}>
@@ -155,7 +204,7 @@ const SettingsScreen = ({ navigation }) => {
           S-Life · Version 1.0
         </Typography>
       </ScrollView>
-      <ScreenOverlayLoader visible={loggingOut} />
+      <ScreenOverlayLoader visible={loggingOut || testingPush} />
     </SafeAreaWrapper>
   );
 };

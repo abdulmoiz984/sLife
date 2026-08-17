@@ -6,6 +6,7 @@ import { queryClient, storage } from '../../api/api';
 import { KEYS } from '../../constants';
 import { getMe } from '../../api/authService';
 import { getProfileOptions } from '../../api/profileService';
+import { registerCurrentPushToken } from '../../api/pushService';
 
 async function Prefetching() {
   await Promise.all([
@@ -53,6 +54,12 @@ export const onLoginSuccess = async (
       const user = await resolveUser(response?.user);
       dispatch(setUser(user));
       await Prefetching();
+
+      if (user?.status !== 'rejected') {
+        registerCurrentPushToken().catch(err => {
+          console.log('onLoginSuccess ~ push register:', err?.response?.data || err);
+        });
+      }
 
       if (user?.status === 'rejected') {
         showMessage({
@@ -112,6 +119,9 @@ export const onRegisterSuccess = async (response, email, navigation, dispatch) =
     });
 
     await Prefetching();
+    registerCurrentPushToken().catch(err => {
+      console.log('onRegisterSuccess ~ push register:', err?.response?.data || err);
+    });
     navigation.replace('VerifyScreen', { email });
   }
 };
