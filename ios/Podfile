@@ -28,6 +28,10 @@ target 'sLife' do
   use_frameworks! :linkage => :static
   $RNFirebaseAsStaticFramework = true
 
+  # Prebuilt RN core + static Firebase frameworks break RNFBMessaging imports.
+  ENV['RCT_USE_RN_DEP'] = '0'
+  ENV['RCT_USE_PREBUILT_RNCORE'] = '0'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
@@ -41,5 +45,11 @@ target 'sLife' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |build_config|
+        build_config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
   end
 end
