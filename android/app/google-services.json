@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "270748812783",
+    "project_id": "slife-7c46a",
+    "storage_bucket": "slife-7c46a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270748812783:android:ba3c0d837bc77953d7e21a",
+        "android_client_info": {
+          "package_name": "com.slife"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaoCDqtzDhEuSYFk4m8Abr7oLLa8gT16Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

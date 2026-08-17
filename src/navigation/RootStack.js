@@ -7,13 +7,25 @@ import StackNavigator from './StackNavigator';
 import { COLORS } from '../globalStyle/Theme';
 import { navigationRef } from './NavigationService';
 import { storage } from '../api/api';
+import { KEYS } from '../constants';
+import {
+  notificationListener,
+  requestNotificationPermission,
+} from '../utils/notificationHelper';
 
 const RootStack = () => {
 
 
   useEffect(() => {
-  // storage.clearAll()
+    (async () => {
+      const fcmToken = storage.getString(KEYS.FCM_TOKEN);
+      __DEV__ && console.log(' RootStack ~ fcmToken:', fcmToken);
 
+      if (!fcmToken) {
+        requestNotificationPermission();
+      }
+      notificationListener();
+    })();
   }, [])
   
   return (
