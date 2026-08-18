@@ -5,6 +5,9 @@ export const BASE_URL = __DEV__
 
 export const API_DOMAIN = `${BASE_URL}api/`;
 
+/** Site origin without trailing slash or `/api` — used by Pusher auth. */
+export const API_ORIGIN = BASE_URL.replace(/\/+$/, '');
+
 export const ENDPOINTS = {
   // --- Auth (Module A) ---
   REGISTER: 'register',
@@ -48,4 +51,19 @@ export const ENDPOINTS = {
   // --- Reports (Module F) ---
   REPORT_REASONS: 'reports/reasons',
   REPORTS: 'reports',
+
+  // --- Chat (one-to-one text) ---
+  CHATS: 'chats',
+  CHAT_MESSAGES: id => `chats/${id}/messages`,
+  CHAT_READ: id => `chats/${id}/read`,
+  BROADCAST_AUTH: 'broadcasting/auth',
+
+  // --- Blocking ---
+  BLOCKED_USERS: 'blocked-users',
+  BLOCK_USER: userId => `users/${userId}/block`,
+
+  // --- Notification inbox ---
+  NOTIFICATIONS: 'notifications',
+  NOTIFICATION_READ: id => `notifications/${id}/read`,
+  NOTIFICATIONS_READ_ALL: 'notifications/read-all',
 };

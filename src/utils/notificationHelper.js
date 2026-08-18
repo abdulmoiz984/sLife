@@ -11,8 +11,15 @@ import {
   getStoredFcmToken,
   registerCurrentPushToken,
 } from '../api/pushService';
-import { invalidateConnectionQueries } from '../helpers/connectionHelpers';
-import { navigate, navigationRef } from '../navigation/NavigationService';
+import { navigate, navigateToChat, navigationRef } from '../navigation/NavigationService';
+import {
+  getActiveConversationId,
+  invalidateChatQueries,
+} from '../helpers/chatHelpers';
+import {
+  invalidateNotificationQueries,
+  openNotificationDestination,
+} from '../helpers/notificationHelpers';
 
 const PUSH_CHANNEL_ID = 'default';
 const AUTH_ROUTES = new Set([
@@ -163,13 +170,32 @@ function openPushRoute(data = {}) {
   const type = data.type;
   const screen = data.screen;
 
+  if (type) {
+    invalidateNotificationQueries().catch(() => {});
+  }
+
+  if (type === 'chat_message') {
+    const conversationId = data.conversation_id;
+    invalidateChatQueries(conversationId).catch(() => {});
+    navigateToChat({
+      conversationId: conversationId
+        ? Number(conversationId) || conversationId
+        : undefined,
+      userId: data.sender_id
+        ? Number(data.sender_id) || data.sender_id
+        : undefined,
+    });
+    return;
+  }
+
   if (
     type === 'connection_request' ||
     type === 'connection_accept' ||
-    type === 'connection_accepted'
+    type === 'connection_accepted' ||
+    type === 'verification_approved' ||
+    type === 'verification_rejected'
   ) {
-    invalidateConnectionQueries(data.sender_id).catch(() => {});
-    navigate('RequestsScreen');
+    openNotificationDestination(data);
     return;
   }
 
@@ -278,6 +304,22 @@ export const notificationListener = () => {
 
 const handleForegroundNotification = async remoteMsg => {
   try {
+    const data = stringifyPushData(remoteMsg?.data || {});
+
+    if (data.type === 'chat_message') {
+      invalidateChatQueries(data.conversation_id).catch(() => {});
+      if (
+        getActiveConversationId() &&
+        String(getActiveConversationId()) === String(data.conversation_id)
+      ) {
+        return;
+      }
+    }
+
+    if (data.type) {
+      invalidateNotificationQueries().catch(() => {});
+    }
+
     await ensureDefaultChannel();
 
     const title =
@@ -285,7 +327,6 @@ const handleForegroundNotification = async remoteMsg => {
     const body = remoteMsg?.notification?.body || remoteMsg?.data?.body || '';
     const imageUrl =
       remoteMsg?.notification?.android?.imageUrl || remoteMsg?.data?.imageUrl;
-    const data = stringifyPushData(remoteMsg?.data || {});
 
     await notifee.displayNotification({
       title,

@@ -23,6 +23,8 @@ import {
   mapMemberCard,
 } from '../../helpers/memberMapper';
 import { showMessage } from '../../utils';
+import { getNotifications } from '../../api/notificationService';
+import { NOTIFICATIONS_QUERY_KEY } from '../../helpers/notificationHelpers';
 
 const HomeScreen = ({ navigation }) => {
   const [requestFor, setRequestFor] = useState(null);
@@ -42,6 +44,12 @@ const HomeScreen = ({ navigation }) => {
     queryKey: ['members', { per_page: 20, page: 1 }],
     queryFn: () => getMembers({ per_page: 20, page: 1 }),
   });
+
+  const { data: notificationsRes } = useCustomQuery({
+    queryKey: NOTIFICATIONS_QUERY_KEY,
+    queryFn: () => getNotifications({ per_page: 1 }),
+  });
+  const unreadNotifications = notificationsRes?.meta?.unread_count ?? 0;
 
   const matches = useMemo(
     () =>
@@ -100,6 +108,17 @@ const HomeScreen = ({ navigation }) => {
             hitSlop={8}
             style={styles.bell}>
             <Icon.Bell size={20} color={COLORS.foreground} />
+            {unreadNotifications > 0 && (
+              <View style={styles.badge}>
+                <Typography
+                  fixed
+                  size={9}
+                  fFamily="interBold700"
+                  color={COLORS.primaryForeground}>
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </Typography>
+              </View>
+            )}
           </Pressable>
         </View>
       </View>
@@ -286,6 +305,18 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   bell: { position: 'relative' },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scroll: { paddingBottom: 32 },
   sectionHead: {
     paddingHorizontal: 20,

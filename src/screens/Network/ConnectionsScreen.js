@@ -214,7 +214,7 @@ const ConnectionsScreen = ({ navigation }) => {
                   onPress={() =>
                     navigation
                       .getParent()
-                      ?.navigate('ChatScreen', { id: row.other.id })
+                      ?.navigate('ChatScreen', { userId: row.other.id })
                   }>
                   <Icon.Message size={16} color={COLORS.primary} />
                 </Pressable>

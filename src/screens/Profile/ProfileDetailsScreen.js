@@ -49,7 +49,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
             <View style={styles.col}>
               <Button
                 label="Message"
-                onPress={() => navigation.navigate('ChatScreen', { id: person.id })}
+                onPress={() => navigation.navigate('ChatScreen', { userId: person.id })}
               />
             </View>
           </View>

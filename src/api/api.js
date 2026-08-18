@@ -68,16 +68,19 @@ api.interceptors.response.use(
   err => {
     const error = err.response;
     const requestUrl = err?.config?.url;
+    const skipToast = !!err?.config?.skipErrorToast;
     console.log('Error in Axios Response Instance: ', error);
 
     if (error?.status === 500) {
-      showMessage({
-        type: 'danger',
-        message:
-          error?.data?.message ||
-          error?.data?.error ||
-          'Something went wrong please try again',
-      });
+      if (!skipToast) {
+        showMessage({
+          type: 'danger',
+          message:
+            error?.data?.message ||
+            error?.data?.error ||
+            'Something went wrong please try again',
+        });
+      }
     }
 
     if (error?.status === 401) {
@@ -85,11 +88,17 @@ api.interceptors.response.use(
       if (!isPublicAuthUrl(requestUrl)) {
         storage.delete(KEYS.ACCESS_TOKEN);
         storage.delete(KEYS.CREDENTIALS);
-        if (!AUTH_APIS_DISABLED) {
+        if (!AUTH_APIS_DISABLED && !skipToast) {
           showMessage({
             type: 'danger',
             message: error?.data?.message || 'Unauthenticated.',
           });
+        }
+        try {
+          const { disconnectEcho } = require('../helpers/echoClient');
+          disconnectEcho();
+        } catch (_) {
+          /* echo may not be loaded yet */
         }
         try {
           const { reset } = require('../navigation/NavigationService');
@@ -99,7 +108,7 @@ api.interceptors.response.use(
         }
       }
     } else if (error?.status === 400) {
-      if (!AUTH_APIS_DISABLED) {
+      if (!AUTH_APIS_DISABLED && !skipToast) {
         showMessage({
           type: 'danger',
           message: error?.data?.message || 'Something went wrong! Bad Request',
@@ -108,14 +117,16 @@ api.interceptors.response.use(
     }
 
     if (error?.status === 404) {
-      showMessage({
-        type: 'danger',
-        message: error?.data?.message || 'Request not found!',
-      });
+      if (!skipToast) {
+        showMessage({
+          type: 'danger',
+          message: error?.data?.message || 'Request not found!',
+        });
+      }
     }
 
     if (error?.status === 403) {
-      if (!AUTH_APIS_DISABLED) {
+      if (!AUTH_APIS_DISABLED && !skipToast) {
         showMessage({
           type: 'danger',
           message: error?.data?.message || 'Forbidden!',
@@ -124,11 +135,13 @@ api.interceptors.response.use(
     }
 
     if (error?.status === 429) {
-      showMessage({
-        type: 'danger',
-        message:
-          error?.data?.message || 'Too many requests. Please try again later.',
-      });
+      if (!skipToast) {
+        showMessage({
+          type: 'danger',
+          message:
+            error?.data?.message || 'Too many requests. Please try again later.',
+        });
+      }
     }
 
     return Promise.reject(err);

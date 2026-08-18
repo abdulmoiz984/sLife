@@ -16,6 +16,7 @@ import {
   unregisterCurrentPushToken,
 } from '../../api/pushService';
 import { requestNotificationPermission } from '../../utils/notificationHelper';
+import { disconnectEcho } from '../../helpers/echoClient';
 
 const SECTIONS = [
   {
@@ -77,6 +78,7 @@ const SettingsScreen = ({ navigation }) => {
       console.log('🚀 ~ logout err:', err?.response?.data || err);
     } finally {
       queryClient.clear();
+      disconnectEcho();
       dispatch(handleLogout());
       showMessage({ type: 'success', message: 'Logged out successfully.' });
       navigation.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });

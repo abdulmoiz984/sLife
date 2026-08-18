@@ -65,6 +65,12 @@ const Icon = {
     </>
   )),
   Check: wrap((c, w) => <Path d="M20 6L9 17l-5-5" {...strokeProps(c, w)} />),
+  Checks: wrap((c, w) => (
+    <>
+      <Path d="M17 6L7 16l-4-4" {...strokeProps(c, w)} />
+      <Path d="M21 6l-9 9" {...strokeProps(c, w)} />
+    </>
+  )),
   Close: wrap((c, w) => <Path d="M18 6L6 18M6 6l12 12" {...strokeProps(c, w)} />),
   Filter: wrap((c, w) => <Path d="M4 5h16M6 12h12M10 19h4" {...strokeProps(c, w)} />),
   Lock: wrap((c, w) => (

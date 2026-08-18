@@ -307,7 +307,7 @@ const ProfileScreen = ({ navigation, route }) => {
                 disabled={!connected}
                 style={[styles.messageBtn, !connected && styles.messageDisabled]}
                 onPress={() =>
-                  navigation.navigate('ChatScreen', { id: person.id })
+                  navigation.navigate('ChatScreen', { userId: person.id })
                 }>
                 {!connected && <Icon.Lock size={16} color={COLORS.mute} />}
                 <Typography
