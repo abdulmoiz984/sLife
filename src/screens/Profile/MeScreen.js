@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Pressable,
@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
@@ -16,6 +16,7 @@ import { getProfileCompletion } from '../../helpers/profileCompletion';
 import { mapOwnProfile } from '../../helpers/memberMapper';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { getProfile } from '../../api/profileService';
+import { setProfile } from '../../redux/slices/appSlice';
 
 const membershipCopy = person => {
   const badge = person?.verificationBadgeLabel || person?.tier;
@@ -32,7 +33,9 @@ const membershipCopy = person => {
 };
 
 const MeScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
   const user = useSelector(state => state.app.user);
+  const cachedProfile = useSelector(state => state.app.profile);
 
   const {
     data,
@@ -43,7 +46,17 @@ const MeScreen = ({ navigation }) => {
   } = useCustomQuery({
     queryKey: ['profile', 'me'],
     queryFn: getProfile,
+    placeholderData: cachedProfile
+      ? { success: true, profile: cachedProfile }
+      : undefined,
+    staleTime: 60_000,
   });
+
+  useEffect(() => {
+    if (data?.profile) {
+      dispatch(setProfile(data.profile));
+    }
+  }, [data?.profile, dispatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,8 +65,8 @@ const MeScreen = ({ navigation }) => {
   );
 
   const person = useMemo(
-    () => mapOwnProfile(data?.profile, user),
-    [data?.profile, user],
+    () => mapOwnProfile(data?.profile || cachedProfile, user),
+    [data?.profile, cachedProfile, user],
   );
 
   const completion = person ? getProfileCompletion(person) : 0;

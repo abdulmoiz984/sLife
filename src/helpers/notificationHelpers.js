@@ -1,5 +1,9 @@
 import { queryClient } from '../api/api';
-import { navigate, navigateToChat } from '../navigation/NavigationService';
+import {
+  navigate,
+  navigateToChat,
+  navigateToProfile,
+} from '../navigation/NavigationService';
 import { invalidateConnectionQueries } from './connectionHelpers';
 import { formatChatTime } from './chatHelpers';
 
@@ -96,7 +100,7 @@ export function openNotificationDestination(payload = {}) {
     invalidateConnectionQueries(data.user_id || data.sender_id).catch(() => {});
     const memberId = data.user_id || data.sender_id;
     if (memberId) {
-      navigate('ProfileScreen', { id: Number(memberId) || memberId });
+      navigateToProfile({ id: Number(memberId) || memberId });
     } else {
       navigate('RequestsScreen');
     }

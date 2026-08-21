@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQueryClient } from '@tanstack/react-query';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import {
@@ -38,7 +39,12 @@ import {
   updateBioInterests,
   updateNetworkingGoals,
 } from '../../api/profileService';
-import { setProfile, setUser } from '../../redux/slices/appSlice';
+import {
+  mergeProfile,
+  mergeProfileData,
+  setProfile,
+  setUser,
+} from '../../redux/slices/appSlice';
 import {
   digitsOnly,
   formatBackendErrors,
@@ -68,6 +74,7 @@ const emptyOptions = {
 
 const VerifyScreen = ({ navigation }) => {
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const reduxUser = useSelector(state => state.app.user);
 
   const [step, setStep] = useState(0);
@@ -108,13 +115,13 @@ const VerifyScreen = ({ navigation }) => {
   });
 
   const { data: profileRes, isLoading: profileLoading } = useCustomQuery({
-    queryKey: ['profile'],
+    queryKey: ['profile', 'me'],
     queryFn: getProfile,
   });
 
   const options = optionsRes?.options || emptyOptions;
 
-  const applyProfile = profile => {
+  const applyProfile = useCallback(profile => {
     if (!profile) return;
     dispatch(setProfile(profile));
 
@@ -157,13 +164,13 @@ const VerifyScreen = ({ navigation }) => {
     } else {
       setStep(nextStep);
     }
-  };
+  }, [dispatch, reduxUser?.full_name]);
 
   useEffect(() => {
     if (hydrated || !profileRes?.success || !profileRes?.profile) return;
     applyProfile(profileRes.profile);
     setHydrated(true);
-  }, [profileRes, hydrated]);
+  }, [profileRes, hydrated, applyProfile]);
 
   const toggleValue = (arr, setArr, value) => {
     setArr(arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value]);
@@ -243,7 +250,12 @@ const VerifyScreen = ({ navigation }) => {
 
   const afterStepSuccess = async (response, nextStepIndex, { finish } = {}) => {
     if (response?.profile) {
-      dispatch(setProfile(response.profile));
+      dispatch(mergeProfile(response.profile));
+      queryClient.setQueryData(['profile', 'me'], current => ({
+        ...(current || {}),
+        success: true,
+        profile: mergeProfileData(current?.profile, response.profile),
+      }));
     }
     showMessage({
       type: 'success',

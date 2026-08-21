@@ -66,4 +66,13 @@ export const ENDPOINTS = {
   NOTIFICATIONS: 'notifications',
   NOTIFICATION_READ: id => `notifications/${id}/read`,
   NOTIFICATIONS_READ_ALL: 'notifications/read-all',
+
+  // --- Subscriptions (Stripe PaymentSheet) ---
+  PACKAGES: 'packages',
+  SUBSCRIPTION_PAYMENT_SHEET: 'subscriptions/payment-sheet',
+  SUBSCRIPTION_ACTIVATE_TRIAL: 'subscriptions/activate-trial',
+  SUBSCRIPTION_ME: 'subscriptions/me',
+  SUBSCRIPTION_CANCEL: 'subscriptions/cancel',
+  SUBSCRIPTION_RESUME: 'subscriptions/resume',
+  SUBSCRIPTION_PORTAL: 'subscriptions/portal',
 };

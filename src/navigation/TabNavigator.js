@@ -12,6 +12,7 @@ import MeScreen from '../screens/Profile/MeScreen';
 import { useCustomQuery } from '../query/useCustomQuery';
 import { getConversations } from '../api/chatService';
 import { CHATS_QUERY_KEY, unwrapList } from '../helpers/chatHelpers';
+import { useSubscriptionMe } from '../hooks/useSubscriptionMe';
 
 const Tab = createBottomTabNavigator();
 
@@ -28,10 +29,11 @@ const tabIcon = (name) => {
 
 const TabNavigator = () => {
   const isLogged = useSelector(s => s.app.isLogged);
+  const { isSubscribed } = useSubscriptionMe();
   const { data } = useCustomQuery({
     queryKey: CHATS_QUERY_KEY,
     queryFn: () => getConversations({ per_page: 50 }),
-    enabled: isLogged,
+    enabled: isLogged && isSubscribed,
   });
   const unread = useMemo(
     () =>
@@ -63,7 +65,7 @@ const TabNavigator = () => {
         component={MessagesScreen}
         options={{
           tabBarLabel: 'Messages',
-          tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarBadge: !isSubscribed ? 'PRO' : unread > 0 ? unread : undefined,
           tabBarBadgeStyle: styles.badge,
         }}
       />

@@ -12,7 +12,7 @@ import RequestsScreen from './Network/RequestsScreen';
 import ChatScreen from './Messages/ChatScreen';
 import NotificationsScreen from './Notifications/NotificationsScreen';
 import SettingsScreen from './Settings/SettingsScreen';
-import SubscriptionScreen from './Subscription/SubscriptionScreen';
+import SubscriptionScreen from './Subscription/SubscriptionScreenFixed';
 import ProfileScreen from './Profile/ProfileScreen';
 import ProfileDetailsScreen from './Profile/ProfileDetailsScreen';
 import EducationsScreen from './Profile/EducationsScreen';

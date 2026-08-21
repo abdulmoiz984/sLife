@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import {
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField } from '../../components';
@@ -7,7 +12,7 @@ import { Chip, Icon } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { getProfileOptions } from '../../api/profileService';
-import { showMessage } from '../../utils';
+import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
 
 const FilterSection = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -33,6 +38,9 @@ const FilterSection = ({ title, children, defaultOpen = true }) => {
 };
 
 const FiltersScreen = ({ navigation, route }) => {
+  const {
+    isSubscribed,
+  } = useSubscriptionMe();
   const initial = route?.params?.filters || {};
   const [industry, setIndustry] = useState(initial.industry || '');
   const [role, setRole] = useState(initial.professional_role || '');
@@ -55,20 +63,14 @@ const FiltersScreen = ({ navigation, route }) => {
     [industry, role, orgSize, location],
   );
 
-  const apply = () => {
+  const apply = async () => {
     const filters = {};
     if (industry) filters.industry = industry;
     if (role) filters.professional_role = role;
     if (orgSize) filters.organization_size = orgSize;
     if (location.trim()) filters.location = location.trim();
 
-    if (Object.keys(filters).length) {
-      showMessage({
-        type: 'default',
-        message:
-          'Advanced filters require subscription access. The server may reject them with 422.',
-      });
-    }
+    if (!isSubscribed && Object.keys(filters).length) return;
 
     navigation.navigate('MainTabs', {
       screen: 'DiscoverTab',
@@ -107,6 +109,26 @@ const FiltersScreen = ({ navigation, route }) => {
           Text search is always free. Industry, role, size, and location are
           advanced filters (subscription / trial gated on the API).
         </Typography>
+        {!isSubscribed && (
+          <View style={styles.premiumNote}>
+            <View style={styles.premiumNoteTitle}>
+              <Icon.Lock size={14} color={COLORS.primary} />
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.primary}
+                textTransform="uppercase"
+                style={styles.track}>
+                Premium filters
+              </Typography>
+            </View>
+            <Typography fixed size={13} color={COLORS.body} mT={8} LineHeight={19}>
+              Explore the available filters below. Subscribe when you are ready
+              to apply them to Discover.
+            </Typography>
+          </View>
+        )}
 
         <FilterSection title="Industry">
           {industries.length === 0 ? (
@@ -190,9 +212,17 @@ const FiltersScreen = ({ navigation, route }) => {
         <View style={styles.col}>
           <Button
             label={
-              activeCount ? `Apply ${activeCount} filter${activeCount > 1 ? 's' : ''}` : 'Show results'
+              !isSubscribed
+                ? 'Unlock filters'
+                : activeCount
+                  ? `Apply ${activeCount} filter${activeCount > 1 ? 's' : ''}`
+                  : 'Show results'
             }
-            onPress={apply}
+            onPress={
+              isSubscribed
+                ? apply
+                : () => navigation.navigate('SubscriptionScreen')
+            }
           />
         </View>
       </View>
@@ -203,6 +233,19 @@ const FiltersScreen = ({ navigation, route }) => {
 export default FiltersScreen;
 
 const styles = StyleSheet.create({
+  premiumNote: {
+    marginBottom: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.primarySoft,
+  },
+  premiumNoteTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
   handleWrap: { paddingTop: 12, paddingBottom: 4, alignItems: 'center' },
   handle: {
     width: 48,

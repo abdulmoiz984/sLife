@@ -40,11 +40,20 @@ import {
 } from '../../helpers/chatHelpers';
 import { useChatChannel } from '../../hooks/useChatChannel';
 import { showMessage } from '../../utils';
+import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
+import {
+  isSubscriptionRequiredError,
+} from '../../helpers/subscriptionHelpers';
+import PremiumGate from '../../components/subscription/PremiumGate';
 
 const MAX_BODY = 2000;
 
 const ChatScreen = ({ navigation, route }) => {
   const currentUserId = useSelector(s => s.app.user?.id);
+  const {
+    isSubscribed,
+    isLoading: subscriptionLoading,
+  } = useSubscriptionMe();
   const paramConversationId = route.params?.conversationId ?? null;
   const paramUserId =
     route.params?.userId ??
@@ -145,6 +154,7 @@ const ChatScreen = ({ navigation, route }) => {
   const { data: chatsData } = useCustomQuery({
     queryKey: CHATS_QUERY_KEY,
     queryFn: () => getConversations({ per_page: 50 }),
+    enabled: isSubscribed,
   });
 
   const cachedConversation = useMemo(() => {
@@ -188,6 +198,7 @@ const ChatScreen = ({ navigation, route }) => {
   }, [cachedConversation?.otherLastReadMessageId, bumpOtherLastRead]);
 
   useEffect(() => {
+    if (!isSubscribed) return;
     if (conversationId != null || !paramUserId || openAttempted.current) return;
     openAttempted.current = true;
     let cancelled = false;
@@ -199,6 +210,7 @@ const ChatScreen = ({ navigation, route }) => {
         if (!cancelled) applyConversation(res);
       } catch (err) {
         if (!cancelled) {
+          if (isSubscriptionRequiredError(err)) return;
           const message =
             err?.response?.data?.message || 'Could not open this conversation.';
           setOpenError(message);
@@ -211,7 +223,7 @@ const ChatScreen = ({ navigation, route }) => {
     return () => {
       cancelled = true;
     };
-  }, [conversationId, paramUserId, applyConversation]);
+  }, [isSubscribed, conversationId, paramUserId, applyConversation]);
 
   const ingestPage = useCallback(
     (data, { replace = false } = {}) => {
@@ -238,7 +250,7 @@ const ChatScreen = ({ navigation, route }) => {
   );
 
   const loadLatest = useCallback(async () => {
-    if (conversationId == null) return;
+    if (!isSubscribed || conversationId == null) return;
     const requestForId = conversationId;
     setLoading(true);
     try {
@@ -252,6 +264,7 @@ const ChatScreen = ({ navigation, route }) => {
       if (String(conversationIdRef.current) !== String(requestForId)) {
         return;
       }
+      if (isSubscriptionRequiredError(err)) return;
       showMessage({
         type: 'danger',
         message: err?.response?.data?.message || 'Could not load messages.',
@@ -261,7 +274,7 @@ const ChatScreen = ({ navigation, route }) => {
         setLoading(false);
       }
     }
-  }, [conversationId, ingestPage]);
+  }, [isSubscribed, conversationId, ingestPage]);
 
   useEffect(() => {
     if (conversationId == null) {
@@ -272,7 +285,13 @@ const ChatScreen = ({ navigation, route }) => {
   }, [conversationId, paramUserId, loadLatest]);
 
   const loadOlder = async () => {
-    if (!hasMore || !nextBeforeId || loadingMore || conversationId == null) return;
+    if (
+      !isSubscribed ||
+      !hasMore ||
+      !nextBeforeId ||
+      loadingMore ||
+      conversationId == null
+    ) return;
     const requestForId = conversationId;
     setLoadingMore(true);
     try {
@@ -331,13 +350,13 @@ const ChatScreen = ({ navigation, route }) => {
     [currentUserId, bumpOtherLastRead],
   );
 
-  useChatChannel(conversationId, currentUserId, {
+  useChatChannel(isSubscribed ? conversationId : null, currentUserId, {
     onMessage: onLiveMessage,
     onRead: onLiveRead,
   });
 
   useEffect(() => {
-    if (conversationId == null || items.length === 0) return;
+    if (!isSubscribed || conversationId == null || items.length === 0) return;
     const latestId = items.find(m => m.id != null)?.id;
     if (latestId == null) return;
     const markKey = `${conversationId}:${latestId}`;
@@ -348,10 +367,10 @@ const ChatScreen = ({ navigation, route }) => {
     markChatRead(conversationId)
       .then(() => invalidateChatQueries(conversationId))
       .catch(() => {});
-  }, [conversationId, items]);
+  }, [isSubscribed, conversationId, items]);
 
   const deliver = async (body, clientMessageId, { replaceFailed = false } = {}) => {
-    if (conversationId == null) return;
+    if (!isSubscribed || conversationId == null) return;
     const optimistic = {
       id: null,
       clientMessageId,
@@ -390,6 +409,7 @@ const ChatScreen = ({ navigation, route }) => {
       );
       await invalidateChatQueries(conversationId);
     } catch (err) {
+      if (isSubscriptionRequiredError(err)) return;
       setItems(prev =>
         prev.map(m =>
           m.clientMessageId === clientMessageId
@@ -538,6 +558,59 @@ const ChatScreen = ({ navigation, route }) => {
     );
   };
 
+  if (subscriptionLoading) {
+    return (
+      <SafeAreaWrapper edges={['top', 'bottom']} bgColor={COLORS.background}>
+        <View style={styles.accessLoader}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (!isSubscribed) {
+    return (
+      <SafeAreaWrapper edges={['top', 'bottom']} bgColor={COLORS.background}>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            style={styles.iconBtn}>
+            <Icon.ArrowLeft size={20} color={COLORS.foreground} />
+          </Pressable>
+          <Avatar size={36} />
+          <View style={styles.headerCopy}>
+            <Typography
+              fixed
+              size={14}
+              fFamily="interSemiBold600"
+              color={COLORS.foreground}>
+              Private conversation
+            </Typography>
+            <Typography fixed size={11} color={COLORS.mute}>
+              Premium messaging
+            </Typography>
+          </View>
+          <View style={styles.iconBtn} />
+        </View>
+        <PremiumGate
+          compact
+          eyebrow="Conversation locked"
+          title="Connect through private messaging"
+          description="Subscribe to open this conversation, send messages, and receive realtime replies."
+          cta="Unlock conversation"
+          onUnlock={() => navigation.navigate('SubscriptionScreen')}
+        />
+        <View style={styles.lockedComposer}>
+          <Icon.Lock size={16} color={COLORS.mute} />
+          <Typography fixed size={13} color={COLORS.mute}>
+            Subscribe to write a message
+          </Typography>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
   const headerName = other?.name || 'Conversation';
 
   return (
@@ -651,6 +724,25 @@ const ChatScreen = ({ navigation, route }) => {
 export default ChatScreen;
 
 const styles = StyleSheet.create({
+  accessLoader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedComposer: {
+    minHeight: 58,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',

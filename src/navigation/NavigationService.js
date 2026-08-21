@@ -14,8 +14,10 @@ export function navigate(name, params) {
 /**
  * Open a chat thread. If ChatScreen is already open (another conversation),
  * replace params so the screen switches instead of ignoring the tap.
+ * Access is enforced inside ChatScreen so unsubscribed users can see the
+ * in-context locked preview instead of being redirected immediately.
  */
-export function navigateToChat(params = {}) {
+export async function navigateToChat(params = {}) {
   if (!navigationRef.isReady()) {
     return;
   }
@@ -52,6 +54,13 @@ export function navigateToChat(params = {}) {
     key,
     merge: false,
   });
+}
+
+/** Full profile access is enforced by ProfileScreen's in-context premium gate. */
+export async function navigateToProfile(params = {}) {
+  if (!navigationRef.isReady()) return;
+
+  navigationRef.navigate('ProfileScreen', params);
 }
 
 export function reset(routeName) {

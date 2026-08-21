@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDispatch } from 'react-redux';
 //------------------
 import { Typography } from '../../atomComponents';
 import Button from '../customButtons/Button';
@@ -17,6 +18,8 @@ import {
   updateEducation,
   deleteEducation,
 } from '../../api/educationService';
+import { getProfile } from '../../api/profileService';
+import { setProfile } from '../../redux/slices/appSlice';
 import { formatBackendErrors, showMessage } from '../../utils';
 
 const EMPTY_FORM = {
@@ -41,6 +44,7 @@ const formatRange = item => {
  */
 const EducationsEditor = ({ compact = false, onDescriptionFocus }) => {
   const queryClient = useQueryClient();
+  const dispatch = useDispatch();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -56,7 +60,16 @@ const EducationsEditor = ({ compact = false, onDescriptionFocus }) => {
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['educations'] });
-    await queryClient.invalidateQueries({ queryKey: ['profile'] });
+    try {
+      const response = await queryClient.fetchQuery({
+        queryKey: ['profile', 'me'],
+        queryFn: getProfile,
+      });
+      if (response?.profile) dispatch(setProfile(response.profile));
+    } catch (_) {
+      // The education mutation succeeded; a later profile refresh can retry sync.
+      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+    }
   };
 
   const { mutateAsync: addEducation, isPending: adding } = useCustomMutation({

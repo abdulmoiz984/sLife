@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   View,
   ScrollView,
@@ -38,7 +44,11 @@ import {
   updateBioInterests,
   updateNetworkingGoals,
 } from '../api/profileService';
-import { setProfile } from '../redux/slices/appSlice';
+import {
+  mergeProfile,
+  mergeProfileData,
+  setProfile,
+} from '../redux/slices/appSlice';
 import {
   digitsOnly,
   formatBackendErrors,
@@ -73,33 +83,71 @@ const ProfileSetupScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const reduxUser = useSelector(state => state.app.user);
+  const reduxProfile = useSelector(state => state.app.profile);
+
+  const cachedBasic = reduxProfile?.basic_info || {};
+  const cachedProfessional = reduxProfile?.professional_info || {};
+  const cachedOrganization = reduxProfile?.organization || {};
+  const cachedVerification = reduxProfile?.verification || {};
+  const cachedBioInterests = reduxProfile?.bio_interests || {};
 
   const [step, setStep] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
+  const formDirtyRef = useRef(false);
 
-  const [fullName, setFullName] = useState(reduxUser?.full_name || '');
-  const [phone, setPhone] = useState('');
-  const [location, setLocation] = useState('');
+  const [fullName, setFullName] = useState(
+    cachedBasic.full_name || reduxUser?.full_name || '',
+  );
+  const [phone, setPhone] = useState(
+    digitsOnly(cachedBasic.phone_number || ''),
+  );
+  const [location, setLocation] = useState(cachedBasic.location || '');
   const [photo, setPhoto] = useState(null);
-  const [photoUrl, setPhotoUrl] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(
+    cachedBasic.profile_photo_url || null,
+  );
   const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
 
-  const [title, setTitle] = useState('');
-  const [industry, setIndustry] = useState('');
-  const [years, setYears] = useState('');
-  const [role, setRole] = useState('');
+  const [title, setTitle] = useState(
+    cachedProfessional.professional_title || '',
+  );
+  const [industry, setIndustry] = useState(
+    cachedProfessional.industry || '',
+  );
+  const [years, setYears] = useState(
+    cachedProfessional.years_of_experience != null
+      ? String(cachedProfessional.years_of_experience)
+      : '',
+  );
+  const [role, setRole] = useState(
+    cachedProfessional.professional_role || '',
+  );
 
-  const [company, setCompany] = useState('');
-  const [orgSize, setOrgSize] = useState('');
-  const [website, setWebsite] = useState('');
+  const [company, setCompany] = useState(
+    cachedOrganization.company_name || '',
+  );
+  const [orgSize, setOrgSize] = useState(
+    cachedOrganization.organization_size || '',
+  );
+  const [website, setWebsite] = useState(cachedOrganization.website || '');
 
-  const [linkedin, setLinkedin] = useState('');
+  const [linkedin, setLinkedin] = useState(
+    cachedVerification.linkedin_or_portfolio_url || '',
+  );
   const [docFiles, setDocFiles] = useState({});
 
-  const [bio, setBio] = useState('');
-  const [selectedInterests, setSelectedInterests] = useState([]);
-  const [selectedGoals, setSelectedGoals] = useState([]);
+  const [bio, setBio] = useState(cachedBioInterests.bio || '');
+  const [selectedInterests, setSelectedInterests] = useState(
+    (cachedBioInterests.interests || []).map(i =>
+      typeof i === 'string' ? i : i.value,
+    ),
+  );
+  const [selectedGoals, setSelectedGoals] = useState(
+    (reduxProfile?.networking_goals || []).map(g =>
+      typeof g === 'string' ? g : g.value,
+    ),
+  );
 
   const {
     data: optionsRes,
@@ -110,14 +158,22 @@ const ProfileSetupScreen = ({ navigation }) => {
     queryFn: getProfileOptions,
   });
 
-  const { data: profileRes, isLoading: profileLoading } = useCustomQuery({
+  const {
+    data: profileRes,
+    isLoading: profileLoading,
+    isPlaceholderData: profileIsPlaceholder,
+  } = useCustomQuery({
     queryKey: ['profile', 'me'],
     queryFn: getProfile,
+    placeholderData: reduxProfile
+      ? { success: true, profile: reduxProfile }
+      : undefined,
+    staleTime: 60_000,
   });
 
   const options = optionsRes?.options || emptyOptions;
 
-  const applyProfile = profile => {
+  const applyProfile = useCallback(profile => {
     if (!profile) return;
     dispatch(setProfile(profile));
 
@@ -153,16 +209,28 @@ const ProfileSetupScreen = ({ navigation }) => {
         typeof g === 'string' ? g : g.value,
       ),
     );
-  };
+  }, [dispatch, reduxUser?.full_name]);
 
   useEffect(() => {
-    if (hydrated || !profileRes?.success || !profileRes?.profile) return;
+    if (
+      hydrated ||
+      profileIsPlaceholder ||
+      formDirtyRef.current ||
+      !profileRes?.success ||
+      !profileRes?.profile
+    ) return;
     applyProfile(profileRes.profile);
     setHydrated(true);
-  }, [profileRes, hydrated]);
+  }, [profileRes, profileIsPlaceholder, hydrated, applyProfile]);
 
   const toggleValue = (arr, setArr, value) => {
+    formDirtyRef.current = true;
     setArr(arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value]);
+  };
+
+  const changeField = setter => value => {
+    formDirtyRef.current = true;
+    setter(value);
   };
 
   const optionsReadyForStep = useMemo(() => {
@@ -235,15 +303,12 @@ const ProfileSetupScreen = ({ navigation }) => {
 
   const afterSave = async (response, nextStepIndex, { finish } = {}) => {
     if (response?.profile) {
-      dispatch(setProfile(response.profile));
-      queryClient.setQueryData(['profile', 'me'], {
+      dispatch(mergeProfile(response.profile));
+      queryClient.setQueryData(['profile', 'me'], current => ({
+        ...(current || {}),
         success: true,
-        profile: response.profile,
-      });
-      queryClient.setQueryData(['profile'], {
-        success: true,
-        profile: response.profile,
-      });
+        profile: mergeProfileData(current?.profile, response.profile),
+      }));
     }
     await queryClient.invalidateQueries({ queryKey: ['profile'] });
 
@@ -286,6 +351,7 @@ const ProfileSetupScreen = ({ navigation }) => {
     setTimeout(async () => {
       const asset = await pickUploadAsset({ mediaType: 'photo' });
       if (asset) {
+        formDirtyRef.current = true;
         setPhoto(asset);
         setPhotoUrl(asset.uri);
       }
@@ -293,6 +359,7 @@ const ProfileSetupScreen = ({ navigation }) => {
   };
 
   const removePhoto = () => {
+    formDirtyRef.current = true;
     setPhoto(null);
     // Keep remote URL cleared only for newly picked local photo;
     // if user had server photo, clearing means don't re-upload — revert display to remote on next load.
@@ -304,6 +371,7 @@ const ProfileSetupScreen = ({ navigation }) => {
     try {
       const asset = await pickPdfDocument();
       if (asset) {
+        formDirtyRef.current = true;
         setDocFiles(prev => ({ ...prev, [docValue]: asset }));
       }
     } catch (_) {
@@ -519,14 +587,17 @@ const ProfileSetupScreen = ({ navigation }) => {
               <TextField
                 label="Full name"
                 value={fullName}
-                onChangeText={setFullName}
+                onChangeText={changeField(setFullName)}
                 placeholder="Your full name"
                 isRequired
               />
               <TextField
                 label="Phone"
                 value={maskUsPhoneWithCode(phone)}
-                onChangeText={text => setPhone(digitsOnly(text))}
+                onChangeText={text => {
+                  formDirtyRef.current = true;
+                  setPhone(digitsOnly(text));
+                }}
                 placeholder="+1 555-123-4567"
                 keyboardType="phone-pad"
                 isRequired
@@ -534,7 +605,7 @@ const ProfileSetupScreen = ({ navigation }) => {
               <TextField
                 label="Location"
                 value={location}
-                onChangeText={setLocation}
+                onChangeText={changeField(setLocation)}
                 placeholder="City, State"
                 isRequired
               />
@@ -546,7 +617,7 @@ const ProfileSetupScreen = ({ navigation }) => {
               <TextField
                 label="Professional title"
                 value={title}
-                onChangeText={setTitle}
+                onChangeText={changeField(setTitle)}
                 placeholder="e.g. Software Engineer"
                 isRequired
               />
@@ -566,14 +637,17 @@ const ProfileSetupScreen = ({ navigation }) => {
                     key={item.value}
                     label={item.label}
                     active={industry === item.value}
-                    onPress={() => setIndustry(item.value)}
+                    onPress={() => {
+                      formDirtyRef.current = true;
+                      setIndustry(item.value);
+                    }}
                   />
                 ))}
               </View>
               <TextField
                 label="Years of experience"
                 value={years}
-                onChangeText={setYears}
+                onChangeText={changeField(setYears)}
                 keyboardType="number-pad"
                 placeholder="e.g. 5"
                 isRequired
@@ -594,7 +668,10 @@ const ProfileSetupScreen = ({ navigation }) => {
                     key={item.value}
                     label={item.label}
                     active={role === item.value}
-                    onPress={() => setRole(item.value)}
+                    onPress={() => {
+                      formDirtyRef.current = true;
+                      setRole(item.value);
+                    }}
                   />
                 ))}
               </View>
@@ -607,7 +684,7 @@ const ProfileSetupScreen = ({ navigation }) => {
                 label="Company / organization"
                 placeholder="Company, clinic, firm, school, or Freelance"
                 value={company}
-                onChangeText={setCompany}
+                onChangeText={changeField(setCompany)}
               />
               <Typography
                 fixed
@@ -625,7 +702,10 @@ const ProfileSetupScreen = ({ navigation }) => {
                     key={item.value}
                     label={item.label}
                     active={orgSize === item.value}
-                    onPress={() => setOrgSize(item.value)}
+                    onPress={() => {
+                      formDirtyRef.current = true;
+                      setOrgSize(item.value);
+                    }}
                   />
                 ))}
               </View>
@@ -633,7 +713,7 @@ const ProfileSetupScreen = ({ navigation }) => {
                 label="Website"
                 placeholder="https://"
                 value={website}
-                onChangeText={setWebsite}
+                onChangeText={changeField(setWebsite)}
                 autoCapitalize="none"
                 keyboardType="url"
               />
@@ -660,7 +740,7 @@ const ProfileSetupScreen = ({ navigation }) => {
                 label="LinkedIn or portfolio URL"
                 placeholder="https://linkedin.com/in/you"
                 value={linkedin}
-                onChangeText={setLinkedin}
+                onChangeText={changeField(setLinkedin)}
                 autoCapitalize="none"
                 keyboardType="url"
                 isRequired
@@ -682,7 +762,7 @@ const ProfileSetupScreen = ({ navigation }) => {
                 label="Professional bio"
                 placeholder="A short summary of who you are and what you do."
                 value={bio}
-                onChangeText={setBio}
+                onChangeText={changeField(setBio)}
                 multiline
                 maxLength={500}
               />

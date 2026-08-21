@@ -23,10 +23,13 @@ import {
   mapConnectionRow,
 } from '../../helpers/connectionHelpers';
 import { showMessage } from '../../utils';
+import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
+import { navigateToChat } from '../../navigation/NavigationService';
 
 const ConnectionsScreen = ({ navigation }) => {
   const [sort, setSort] = useState('recent');
   const [q, setQ] = useState('');
+  const { isSubscribed } = useSubscriptionMe();
 
   const { data, isLoading, isFetching, refetch } = useCustomQuery({
     queryKey: ['connections', { filter: 'accepted' }],
@@ -97,8 +100,11 @@ const ConnectionsScreen = ({ navigation }) => {
     );
   };
 
-  const openProfile = id => {
-    navigation.getParent()?.navigate('ProfileScreen', { id });
+  const openProfile = person => {
+    navigation.getParent()?.navigate('ProfileScreen', {
+      id: person.id,
+      preview: person,
+    });
   };
 
   return (
@@ -182,7 +188,7 @@ const ConnectionsScreen = ({ navigation }) => {
           <View style={styles.list}>
             {rows.map(row => (
               <View key={row.id} style={styles.row}>
-                <Pressable onPress={() => openProfile(row.other.id)}>
+                <Pressable onPress={() => openProfile(row.other)}>
                   <Avatar
                     src={row.other.avatar}
                     size={48}
@@ -191,7 +197,7 @@ const ConnectionsScreen = ({ navigation }) => {
                 </Pressable>
                 <Pressable
                   style={styles.copy}
-                  onPress={() => openProfile(row.other.id)}
+                  onPress={() => openProfile(row.other)}
                   onLongPress={() => confirmDisconnect(row)}>
                   <Typography
                     fixed
@@ -211,12 +217,12 @@ const ConnectionsScreen = ({ navigation }) => {
                 </Pressable>
                 <Pressable
                   style={styles.msgBtn}
-                  onPress={() =>
-                    navigation
-                      .getParent()
-                      ?.navigate('ChatScreen', { userId: row.other.id })
-                  }>
-                  <Icon.Message size={16} color={COLORS.primary} />
+                  onPress={() => navigateToChat({ userId: row.other.id })}>
+                  {isSubscribed ? (
+                    <Icon.Message size={16} color={COLORS.primary} />
+                  ) : (
+                    <Icon.Lock size={16} color={COLORS.primary} />
+                  )}
                 </Pressable>
                 <Pressable
                   style={styles.moreBtn}

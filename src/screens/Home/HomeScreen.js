@@ -68,8 +68,11 @@ const HomeScreen = ({ navigation }) => {
     [membersRes],
   );
 
-  const openProfile = id => {
-    navigation.getParent()?.navigate('ProfileScreen', { id });
+  const openProfile = person => {
+    navigation.getParent()?.navigate('ProfileScreen', {
+      id: person.id,
+      preview: person,
+    });
   };
 
   const onConnectPress = person => {
@@ -78,7 +81,7 @@ const HomeScreen = ({ navigation }) => {
       return;
     }
     if (person.connection?.status === 'accepted') {
-      openProfile(person.id);
+      openProfile(person);
       return;
     }
     setRequestFor(person);
@@ -171,7 +174,7 @@ const HomeScreen = ({ navigation }) => {
               <Pressable
                 key={p.id}
                 style={styles.matchCard}
-                onPress={() => openProfile(p.id)}>
+                onPress={() => openProfile(p)}>
                 <View style={styles.matchInner}>
                   <Avatar src={p.avatar} size={56} tier={p.tier} />
                   <View style={styles.matchCopy}>
@@ -256,7 +259,7 @@ const HomeScreen = ({ navigation }) => {
                     <Button
                       type="outline"
                       label="View Profile"
-                      onPress={() => openProfile(p.id)}
+                      onPress={() => openProfile(p)}
                     />
                   </View>
                   <View style={styles.ctaCol}>

@@ -1,19 +1,35 @@
 import { CommonActions } from '@react-navigation/native';
 //-------
 import { showMessage } from '../../utils';
-import { setUser, handleLogout } from '../../redux/slices/appSlice';
+import {
+  setUser,
+  setProfile,
+  handleLogout,
+} from '../../redux/slices/appSlice';
 import { queryClient, storage } from '../../api/api';
 import { KEYS } from '../../constants';
 import { getMe } from '../../api/authService';
-import { getProfileOptions } from '../../api/profileService';
+import { getProfile, getProfileOptions } from '../../api/profileService';
 import { registerCurrentPushToken } from '../../api/pushService';
+import { prefetchSubscriptionMe } from '../../helpers/subscriptionHelpers';
 
-async function Prefetching() {
-  await Promise.all([
+async function Prefetching(dispatch) {
+  await Promise.allSettled([
     queryClient.prefetchQuery({
       queryKey: ['profileOptions'],
       queryFn: getProfileOptions,
     }),
+    queryClient.prefetchQuery({
+      queryKey: ['profile', 'me'],
+      queryFn: async () => {
+        const response = await getProfile();
+        if (response?.profile) {
+          dispatch?.(setProfile(response.profile));
+        }
+        return response;
+      },
+    }),
+    prefetchSubscriptionMe(),
   ]);
 }
 
@@ -51,15 +67,10 @@ export const onLoginSuccess = async (
         storage.set(KEYS.CREDENTIALS, JSON.stringify({ email, password }));
       }
 
+      // Never let a previous session's in-memory data appear for this account.
+      queryClient.removeQueries();
       const user = await resolveUser(response?.user);
       dispatch(setUser(user));
-      await Prefetching();
-
-      if (user?.status !== 'rejected') {
-        registerCurrentPushToken().catch(err => {
-          console.log('onLoginSuccess ~ push register:', err?.response?.data || err);
-        });
-      }
 
       if (user?.status === 'rejected') {
         showMessage({
@@ -71,6 +82,11 @@ export const onLoginSuccess = async (
         dispatch(handleLogout());
         return;
       }
+
+      await Prefetching(dispatch);
+      registerCurrentPushToken().catch(err => {
+        console.log('onLoginSuccess ~ push register:', err?.response?.data || err);
+      });
 
       if (!user?.profile_completed) {
         navigation.dispatch(
@@ -109,6 +125,7 @@ export const onRegisterSuccess = async (response, email, navigation, dispatch) =
     if (response?.token) {
       storage.set(KEYS.ACCESS_TOKEN, response.token);
     }
+    queryClient.removeQueries();
     if (response?.user) {
       dispatch?.(setUser(response.user));
     }
@@ -118,7 +135,7 @@ export const onRegisterSuccess = async (response, email, navigation, dispatch) =
       message: response?.message || 'Registration successful.',
     });
 
-    await Prefetching();
+    await Prefetching(dispatch);
     registerCurrentPushToken().catch(err => {
       console.log('onRegisterSuccess ~ push register:', err?.response?.data || err);
     });

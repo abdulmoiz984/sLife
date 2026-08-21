@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useDispatch } from 'react-redux';
 //------------------
@@ -10,59 +10,44 @@ import { logout } from '../../api/authService';
 import { handleLogout } from '../../redux/slices/appSlice';
 import { queryClient } from '../../api/api';
 import { showMessage } from '../../utils';
-import {
-  registerCurrentPushToken,
-  sendTestPush,
-  unregisterCurrentPushToken,
-} from '../../api/pushService';
-import { requestNotificationPermission } from '../../utils/notificationHelper';
+import { unregisterCurrentPushToken } from '../../api/pushService';
 import { disconnectEcho } from '../../helpers/echoClient';
-
-const SECTIONS = [
-  {
-    label: 'Account',
-    items: [
-      { label: 'Edit Profile', to: 'ProfileSetupScreen' },
-      { label: 'Education', to: 'EducationsScreen' },
-      { label: 'Account & Security' },
-      { label: 'Verification Status', hint: 'Verified' },
-    ],
-  },
-  {
-    label: 'Privacy & Notifications',
-    items: [
-      { label: 'Privacy Settings' },
-      { label: 'Hidden Profile Mode' },
-      { label: 'Notification Preferences' },
-      { label: 'Send test notification', action: 'test_push' },
-    ],
-  },
-  {
-    label: 'Membership',
-    items: [
-      { label: 'Subscription & Billing', hint: '$15/mo', to: 'SubscriptionScreen' },
-    ],
-  },
-  {
-    label: 'Support',
-    items: [
-      { label: 'Help & Support' },
-      { label: 'Report a member', action: 'report_hint' },
-    ],
-  },
-  {
-    label: '',
-    items: [
-      { label: 'Log Out', danger: true, action: 'logout' },
-      { label: 'Delete Account', danger: true },
-    ],
-  },
-];
+import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
+import { subscriptionSettingsHint } from '../../helpers/subscriptionHelpers';
 
 const SettingsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [testingPush, setTestingPush] = useState(false);
+  const { subscription } = useSubscriptionMe();
+
+  const sections = useMemo(
+    () => [
+      {
+        label: 'Account',
+        items: [
+          { label: 'Edit Profile', to: 'ProfileSetupScreen' },
+          { label: 'Education', to: 'EducationsScreen' },
+        ],
+      },
+      {
+        label: 'Membership',
+        items: [
+          {
+            label: 'Subscription & Billing',
+            hint: subscriptionSettingsHint(subscription),
+            to: 'SubscriptionScreen',
+          },
+        ],
+      },
+      {
+        label: '',
+        items: [
+          { label: 'Log Out', danger: true, action: 'logout' },
+        ],
+      },
+    ],
+    [subscription],
+  );
 
   const performLogout = async () => {
     if (loggingOut) return;
@@ -86,48 +71,9 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  const performTestPush = async () => {
-    if (testingPush) return;
-    setTestingPush(true);
-    try {
-      await requestNotificationPermission();
-      await registerCurrentPushToken();
-      const res = await sendTestPush();
-      showMessage({
-        type: 'success',
-        message: res?.message || 'Test push notification processed.',
-      });
-    } catch (err) {
-      const status = err?.response?.status;
-      const apiMessage = err?.response?.data?.message;
-      showMessage({
-        type: 'danger',
-        message:
-          apiMessage ||
-          (status === 422
-            ? 'No registered device. Grant notification permission and try again.'
-            : 'Could not send test notification.'),
-      });
-    } finally {
-      setTestingPush(false);
-    }
-  };
-
   const onItem = item => {
     if (item.action === 'logout') {
       performLogout();
-      return;
-    }
-    if (item.action === 'test_push') {
-      performTestPush();
-      return;
-    }
-    if (item.action === 'report_hint') {
-      showMessage({
-        type: 'default',
-        title: 'Report a member',
-        message: 'Open any member profile and tap ⋮ → Report member.',
-      });
       return;
     }
     if (!item.to) return;
@@ -144,7 +90,7 @@ const SettingsScreen = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}>
-        {SECTIONS.map((s, i) => (
+        {sections.map((s, i) => (
           <View key={i} style={styles.section}>
             {!!s.label && (
               <Typography
@@ -162,10 +108,7 @@ const SettingsScreen = ({ navigation }) => {
                 <Pressable
                   key={it.label}
                   onPress={() => onItem(it)}
-                  disabled={
-                    (it.action === 'logout' && loggingOut) ||
-                    (it.action === 'test_push' && testingPush)
-                  }
+                  disabled={it.action === 'logout' && loggingOut}
                   style={styles.row}>
                   <Typography
                     fixed
@@ -174,8 +117,6 @@ const SettingsScreen = ({ navigation }) => {
                     color={it.danger ? COLORS.destructive : COLORS.foreground}>
                     {it.action === 'logout' && loggingOut
                       ? 'Logging out…'
-                      : it.action === 'test_push' && testingPush
-                      ? 'Sending…'
                       : it.label}
                   </Typography>
                   <View style={styles.right}>
@@ -206,7 +147,7 @@ const SettingsScreen = ({ navigation }) => {
           S-Life · Version 1.0
         </Typography>
       </ScrollView>
-      <ScreenOverlayLoader visible={loggingOut || testingPush} />
+      <ScreenOverlayLoader visible={loggingOut} />
     </SafeAreaWrapper>
   );
 };

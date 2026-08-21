@@ -13,9 +13,14 @@ import {
   requestNotificationPermission,
 } from '../utils/notificationHelper';
 import { connectEcho, disconnectEcho } from '../helpers/echoClient';
+import { bindSubscriptionForegroundRefresh } from '../helpers/subscriptionHelpers';
+import { useSubscriptionMe } from '../hooks/useSubscriptionMe';
+import { queryClient } from '../api/api';
+import { CHATS_QUERY_KEY } from '../helpers/chatHelpers';
 
 const RootStack = () => {
   const isLogged = useSelector(s => s.app.isLogged);
+  const { isSubscribed } = useSubscriptionMe();
 
   useEffect(() => {
     requestNotificationPermission();
@@ -24,14 +29,18 @@ const RootStack = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLogged) {
+    if (!isLogged || !isSubscribed) {
+      disconnectEcho();
+      queryClient.removeQueries({ queryKey: CHATS_QUERY_KEY });
       return undefined;
     }
     connectEcho();
+    const unbindSub = bindSubscriptionForegroundRefresh();
     return () => {
       disconnectEcho();
+      unbindSub?.();
     };
-  }, [isLogged]);
+  }, [isLogged, isSubscribed]);
 
   return (
     <NavigationContainer
@@ -45,7 +54,6 @@ const RootStack = () => {
         barStyle="light-content"
       />
       <StackNavigator />
-      {/* Last child so toasts float above all screens */}
       <FlashMessage
         position="top"
         floating

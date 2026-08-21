@@ -22,20 +22,30 @@ import {
   mapConversation,
   unwrapList,
 } from '../../helpers/chatHelpers';
+import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
+import { navigateToChat } from '../../navigation/NavigationService';
+import PremiumGate from '../../components/subscription/PremiumGate';
 
 const MessagesScreen = ({ navigation }) => {
   const [q, setQ] = useState('');
   const currentUserId = useSelector(s => s.app.user?.id);
+  const {
+    isSubscribed,
+    isLoading: subscriptionLoading,
+  } = useSubscriptionMe();
 
   const { data, isLoading, isFetching, isError, refetch } = useCustomQuery({
     queryKey: CHATS_QUERY_KEY,
     queryFn: () => getConversations({ per_page: 50 }),
+    enabled: isSubscribed,
   });
 
   useFocusEffect(
     useCallback(() => {
+      if (subscriptionLoading) return;
+      if (!isSubscribed) return;
       refetch();
-    }, [refetch]),
+    }, [subscriptionLoading, isSubscribed, refetch]),
   );
 
   const rows = useMemo(() => {
@@ -54,8 +64,8 @@ const MessagesScreen = ({ navigation }) => {
     });
   }, [data, q, currentUserId]);
 
-  const openChat = row => {
-    navigation.getParent()?.navigate('ChatScreen', {
+  const openChat = async row => {
+    await navigateToChat({
       conversationId: row.id,
       userId: row.other?.id,
     });
@@ -63,7 +73,10 @@ const MessagesScreen = ({ navigation }) => {
 
   const openProfile = row => {
     if (!row.other?.id) return;
-    navigation.getParent()?.navigate('ProfileScreen', { id: row.other.id });
+    navigation.getParent()?.navigate('ProfileScreen', {
+      id: row.other.id,
+      preview: row.other,
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -115,6 +128,39 @@ const MessagesScreen = ({ navigation }) => {
       </View>
     );
   };
+
+  if (subscriptionLoading) {
+    return (
+      <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
+        <ActivityIndicator color={COLORS.primary} style={styles.loader} />
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (!isSubscribed) {
+    return (
+      <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
+        <TopBar overline="Private Line" title="Messages" />
+        <View style={styles.search}>
+          <TextField
+            placeholder="Search conversations"
+            value=""
+            editable={false}
+            mB={0}
+          />
+        </View>
+        <PremiumGate
+          eyebrow="Premium messaging"
+          title="Your conversations live here"
+          description="Subscribe to start private conversations, view message history, read receipts, and realtime replies."
+          cta="Unlock messaging"
+          onUnlock={() =>
+            navigation.getParent()?.navigate('SubscriptionScreen')
+          }
+        />
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
     <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>

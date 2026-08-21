@@ -136,9 +136,12 @@ const RequestsScreen = ({ navigation }) => {
         {list.map(row => (
           <View key={row.id} style={styles.row}>
             <Pressable
-              onPress={() =>
-                navigation.navigate('ProfileScreen', { id: row.other.id })
-              }>
+              onPress={() => {
+                navigation.navigate('ProfileScreen', {
+                  id: row.other.id,
+                  preview: row.other,
+                });
+              }}>
               <Avatar
                 src={row.other.avatar}
                 size={52}

@@ -37,16 +37,24 @@ import {
 } from '../../helpers/memberMapper';
 import { invalidateConnectionQueries } from '../../helpers/connectionHelpers';
 import { showMessage } from '../../utils';
+import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
+import { navigateToChat } from '../../navigation/NavigationService';
+import PremiumGate from '../../components/subscription/PremiumGate';
 
 const ProfileScreen = ({ navigation, route }) => {
   const memberId = route.params?.id;
+  const preview = route.params?.preview || {};
   const [showConnect, setShowConnect] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const {
+    isSubscribed,
+    isLoading: subscriptionLoading,
+  } = useSubscriptionMe();
 
   const { data, isLoading, isError, error, refetch } = useCustomQuery({
     queryKey: ['member', memberId],
     queryFn: () => getMember(memberId),
-    enabled: !!memberId,
+    enabled: !!memberId && isSubscribed,
   });
 
   const person = useMemo(
@@ -150,12 +158,67 @@ const ProfileScreen = ({ navigation, route }) => {
     );
   }
 
-  if (isLoading) {
+  if (subscriptionLoading || (isSubscribed && isLoading)) {
     return (
       <SafeAreaWrapper bgColor={COLORS.background}>
         <View style={styles.empty}>
           <ActivityIndicator color={COLORS.primary} />
         </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (!isSubscribed) {
+    return (
+      <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.lockedScroll}>
+          <View style={styles.lockedTop}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={styles.lockedBack}
+              hitSlop={8}>
+              <Icon.ArrowLeft size={20} color={COLORS.foreground} />
+            </Pressable>
+            <Avatar src={preview.avatar} size={88} tier={preview.tier} />
+            <Typography
+              fixed
+              size={24}
+              fFamily="spaceGroteskBold700"
+              color={COLORS.foreground}
+              textAlign="center"
+              mT={14}>
+              {preview.name || 'Member profile'}
+            </Typography>
+            <Typography
+              fixed
+              size={14}
+              color={COLORS.body}
+              textAlign="center"
+              mT={5}>
+              {preview.headline || preview.industry || 'SLife professional'}
+            </Typography>
+            {!!preview.location && (
+              <Typography
+                fixed
+                size={12}
+                color={COLORS.mute}
+                textAlign="center"
+                mT={6}>
+                {preview.location}
+              </Typography>
+            )}
+          </View>
+          <PremiumGate
+            compact
+            eyebrow="Full profile locked"
+            title="Unlock the complete professional profile"
+            description="Subscribe to view experience, organization, interests, networking goals, and direct messaging."
+            cta="Unlock full profile"
+            onUnlock={() => navigation.navigate('SubscriptionScreen')}
+          />
+        </ScrollView>
       </SafeAreaWrapper>
     );
   }
@@ -306,9 +369,7 @@ const ProfileScreen = ({ navigation, route }) => {
               <Pressable
                 disabled={!connected}
                 style={[styles.messageBtn, !connected && styles.messageDisabled]}
-                onPress={() =>
-                  navigation.navigate('ChatScreen', { userId: person.id })
-                }>
+                onPress={() => navigateToChat({ userId: person.id })}>
                 {!connected && <Icon.Lock size={16} color={COLORS.mute} />}
                 <Typography
                   fixed
@@ -431,6 +492,27 @@ const ProfileScreen = ({ navigation, route }) => {
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
+  lockedScroll: {
+    paddingBottom: 32,
+  },
+  lockedTop: {
+    alignItems: 'center',
+    paddingTop: 34,
+    paddingHorizontal: 24,
+  },
+  lockedBack: {
+    position: 'absolute',
+    left: 20,
+    top: 18,
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scroll: {
     paddingBottom: 40,
   },

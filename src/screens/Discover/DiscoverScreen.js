@@ -23,14 +23,18 @@ import {
   connectionCtaLabel,
   mapMemberCard,
 } from '../../helpers/memberMapper';
-import { showMessage } from '../../utils';
+import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
 
 const DiscoverScreen = ({ navigation, route }) => {
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [view, setView] = useState('list');
   const [requestFor, setRequestFor] = useState(null);
-  const routeFilters = route?.params?.filters || {};
+  const { isSubscribed } = useSubscriptionMe();
+  const routeFilters = useMemo(
+    () => route?.params?.filters || {},
+    [route?.params?.filters],
+  );
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim()), 350);
@@ -66,25 +70,26 @@ const DiscoverScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     if (!isError) return;
-    const status = error?.response?.status;
-    const message = error?.response?.data?.message;
-    const filterErr = error?.response?.data?.errors?.filters?.[0];
-    if (status === 422) {
-      showMessage({
-        type: 'danger',
-        message:
-          filterErr ||
-          message ||
-          'Advanced search filters require an active subscription.',
-      });
+    if (error?.response?.data?.code === 'SUBSCRIPTION_REQUIRED') {
+      // Prevent an immediate redirect loop if the user backs out of paywall.
+      navigation.setParams({ filters: undefined });
     }
-  }, [isError, error]);
+  }, [isError, error, navigation]);
 
   const members = (data?.members || []).map(mapMemberCard).filter(Boolean);
   const total = data?.meta?.total ?? members.length;
 
-  const openProfile = id => {
-    navigation.getParent()?.navigate('ProfileScreen', { id });
+  const openProfile = person => {
+    navigation.getParent()?.navigate('ProfileScreen', {
+      id: person.id,
+      preview: person,
+    });
+  };
+
+  const openAdvancedFilters = () => {
+    navigation.getParent()?.navigate('FiltersScreen', {
+      filters: routeFilters,
+    });
   };
 
   const connectLabel = person => connectionCtaLabel(person.connection);
@@ -92,7 +97,7 @@ const DiscoverScreen = ({ navigation, route }) => {
   const onConnectPress = person => {
     const status = person.connection?.status;
     if (status === 'pending' || status === 'accepted') {
-      openProfile(person.id);
+      openProfile(person);
       return;
     }
     setRequestFor(person);
@@ -105,12 +110,12 @@ const DiscoverScreen = ({ navigation, route }) => {
         title="Discover Professionals"
         right={
           <Pressable
-            onPress={() =>
-              navigation.getParent()?.navigate('FiltersScreen', {
-                filters: routeFilters,
-              })
-            }
+            onPress={openAdvancedFilters}
+            style={styles.filterAction}
             hitSlop={8}>
+            {!isSubscribed && (
+              <Icon.Lock size={14} color={COLORS.primary} />
+            )}
             <Icon.Filter size={20} color={COLORS.foreground} />
           </Pressable>
         }
@@ -200,7 +205,7 @@ const DiscoverScreen = ({ navigation, route }) => {
         {view === 'list'
           ? members.map(p => (
               <View key={p.id} style={styles.listCard}>
-                <Pressable onPress={() => openProfile(p.id)}>
+                <Pressable onPress={() => openProfile(p)}>
                   <Avatar src={p.avatar} size={56} tier={p.tier} />
                 </Pressable>
                 <View style={styles.listCopy}>
@@ -210,7 +215,7 @@ const DiscoverScreen = ({ navigation, route }) => {
                     fFamily="interSemiBold600"
                     color={COLORS.foreground}
                     numberOfLines={1}
-                    onPress={() => openProfile(p.id)}>
+                    onPress={() => openProfile(p)}>
                     {p.name}
                   </Typography>
                   <Typography fixed size={12} color={COLORS.body} numberOfLines={1}>
@@ -221,6 +226,11 @@ const DiscoverScreen = ({ navigation, route }) => {
                       '—'}
                   </Typography>
                 </View>
+                {!isSubscribed && (
+                  <View style={styles.profileLock}>
+                    <Icon.Lock size={14} color={COLORS.primary} />
+                  </View>
+                )}
                 <View style={styles.connectBtn}>
                   <Button
                     label={connectLabel(p)}
@@ -239,7 +249,12 @@ const DiscoverScreen = ({ navigation, route }) => {
                 <Pressable
                   key={p.id}
                   style={styles.gridCard}
-                  onPress={() => openProfile(p.id)}>
+                  onPress={() => openProfile(p)}>
+                  {!isSubscribed && (
+                    <View style={styles.gridLock}>
+                      <Icon.Lock size={13} color={COLORS.primary} />
+                    </View>
+                  )}
                   <Avatar src={p.avatar} size={72} tier={p.tier} />
                   <Typography
                     fixed
@@ -284,6 +299,33 @@ const DiscoverScreen = ({ navigation, route }) => {
 export default DiscoverScreen;
 
 const styles = StyleSheet.create({
+  filterAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  profileLock: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridLock: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   body: { padding: 20, paddingBottom: 40 },
   filterNote: {
     borderWidth: 1,

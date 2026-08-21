@@ -31,6 +31,15 @@ export const queryClient = new QueryClient({
 // Storage Constructor:
 export const storage = new MMKV();
 
+let unauthorizedHandler = null;
+
+export const setUnauthorizedHandler = handler => {
+  unauthorizedHandler = handler;
+  return () => {
+    if (unauthorizedHandler === handler) unauthorizedHandler = null;
+  };
+};
+
 const api = axios.create({
   baseURL: API_DOMAIN,
   headers: {
@@ -69,7 +78,19 @@ api.interceptors.response.use(
     const error = err.response;
     const requestUrl = err?.config?.url;
     const skipToast = !!err?.config?.skipErrorToast;
+    const subscriptionRequired =
+      error?.data?.code === 'SUBSCRIPTION_REQUIRED';
     console.log('Error in Axios Response Instance: ', error);
+
+    if (subscriptionRequired) {
+      queryClient.invalidateQueries({
+        queryKey: ['subscription', 'me'],
+      });
+
+      // Typed subscription errors update access state without a generic toast
+      // or automatic redirect. The current screen renders its own locked UI.
+      return Promise.reject(err);
+    }
 
     if (error?.status === 500) {
       if (!skipToast) {
@@ -88,6 +109,9 @@ api.interceptors.response.use(
       if (!isPublicAuthUrl(requestUrl)) {
         storage.delete(KEYS.ACCESS_TOKEN);
         storage.delete(KEYS.CREDENTIALS);
+        storage.delete(KEYS.PROFILE_SNAPSHOT);
+        queryClient.removeQueries();
+        unauthorizedHandler?.();
         if (!AUTH_APIS_DISABLED && !skipToast) {
           showMessage({
             type: 'danger',
