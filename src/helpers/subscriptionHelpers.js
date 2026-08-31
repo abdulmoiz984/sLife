@@ -36,18 +36,38 @@ export function unwrapPackages(data) {
   return [];
 }
 
+export const FALLBACK_FEATURE_LABELS = [
+  'Full profile & portfolio access',
+  'Unlimited member connections',
+  'Direct messaging',
+  'Advanced search filters',
+  'Event & webinar access',
+  'Verification badge eligibility',
+  'Priority support',
+  'Profile analytics dashboard',
+];
+
 export function mapPackage(raw) {
   if (!raw) return null;
+  const description = Array.isArray(raw.description)
+    ? raw.description.filter(item => typeof item === 'string' && item.trim().length > 0)
+    : typeof raw.description === 'string' && raw.description.trim()
+      ? [raw.description.trim()]
+      : [];
   return {
     id: raw.id,
     name: raw.name || 'SLife Membership',
+    description,
     price: raw.price,
     currency: raw.currency || 'USD',
     billingCycle: raw.billing_cycle || 'monthly',
     formattedPrice: raw.formatted_price || null,
     trialDays: Number(raw.trial_days || 0),
-    features: raw.features || [],
-    featureLabels: raw.feature_labels || [],
+    features: Array.isArray(raw.features) ? raw.features : [],
+    featureLabels:
+      Array.isArray(raw.feature_labels) && raw.feature_labels.length > 0
+        ? raw.feature_labels
+        : FALLBACK_FEATURE_LABELS,
     isCheckoutReady: raw.is_checkout_ready !== false,
     raw,
   };

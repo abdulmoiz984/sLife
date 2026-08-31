@@ -606,7 +606,7 @@ const ProfileSetupScreen = ({ navigation }) => {
                 label="Location"
                 value={location}
                 onChangeText={changeField(setLocation)}
-                placeholder="City, State"
+                placeholder="e.g. New York, NY or Los Angeles, CA"
                 isRequired
               />
             </>

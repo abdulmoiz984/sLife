@@ -5,10 +5,11 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button, TextField } from '../../components';
-import { Chip, Icon } from '../../components/slife';
+import { Chip, Icon, TopBar } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { getProfileOptions } from '../../api/profileService';
@@ -38,6 +39,7 @@ const FilterSection = ({ title, children, defaultOpen = true }) => {
 };
 
 const FiltersScreen = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const {
     isSubscribed,
   } = useSubscriptionMe();
@@ -86,24 +88,19 @@ const FiltersScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaWrapper edges={['top', 'bottom']} bgColor={COLORS.surface}>
-      <View style={styles.handleWrap}>
-        <View style={styles.handle} />
-      </View>
-      <View style={styles.top}>
-        <Typography
-          fixed
-          size={18}
-          fFamily="spaceGroteskBold700"
-          color={COLORS.foreground}>
-          Filters
-        </Typography>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Icon.Close size={20} color={COLORS.foreground} />
-        </Pressable>
-      </View>
+    <SafeAreaWrapper keyboardAvoid edges={['top']} bgColor={COLORS.background}>
+      <TopBar
+        overline="The Directory"
+        title="Search Filters"
+        right={
+          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
+            <Icon.Close size={20} color={COLORS.foreground} />
+          </Pressable>
+        }
+      />
       <ScrollView
         contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <Typography fixed size={12} color={COLORS.mute} mB={16} LineHeight={18}>
           Text search is always free. Industry, role, size, and location are
@@ -191,16 +188,20 @@ const FiltersScreen = ({ navigation, route }) => {
           )}
         </FilterSection>
 
-        <FilterSection title="Location" defaultOpen={false}>
+        <FilterSection title="Location (USA & Worldwide)" defaultOpen={true}>
           <TextField
-            placeholder="City or country"
+            label="Enter your location"
+            placeholder="e.g. New York, Los Angeles, Chicago, Texas, Florida"
             value={location}
             onChangeText={setLocation}
             autoCapitalize="words"
           />
+          <Typography fixed size={12} color={COLORS.mute} mT={6}>
+            Search members across any city or state in the USA.
+          </Typography>
         </FilterSection>
       </ScrollView>
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         <View style={styles.col}>
           <Button
             type="outline"
@@ -246,21 +247,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
   },
-  handleWrap: { paddingTop: 12, paddingBottom: 4, alignItems: 'center' },
-  handle: {
-    width: 48,
-    height: 4,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.border,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  body: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
-  body: { paddingHorizontal: 20, paddingBottom: 24 },
   section: { borderTopWidth: 1, borderTopColor: COLORS.border },
   sectionHead: {
     flexDirection: 'row',

@@ -12,7 +12,6 @@ import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { Button } from '../../components';
 import { FullProfileView, Icon, Overline } from '../../components/slife';
 import { COLORS, RADIUS } from '../../globalStyle/Theme';
-import { getProfileCompletion } from '../../helpers/profileCompletion';
 import { mapOwnProfile } from '../../helpers/memberMapper';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { getProfile } from '../../api/profileService';
@@ -69,8 +68,6 @@ const MeScreen = ({ navigation }) => {
     [data?.profile, cachedProfile, user],
   );
 
-  const completion = person ? getProfileCompletion(person) : 0;
-
   if (isLoading && !person) {
     return (
       <SafeAreaWrapper edges={['top']} bgColor={COLORS.background}>
@@ -115,41 +112,37 @@ const MeScreen = ({ navigation }) => {
               />
             ) : null}
             <View style={styles.memberCard}>
-              <View style={styles.checkBox}>
+              <View style={styles.shieldIconBox}>
                 <Icon.Check size={16} color={COLORS.primary} strokeWidth={2.5} />
               </View>
               <View style={styles.memberCopy}>
-                <Overline>Membership status</Overline>
-                <Typography fixed size={13} color={COLORS.foreground} mT={4}>
+                <Overline style={styles.memberOverline}>Membership status</Overline>
+                <Typography fixed size={13} color={COLORS.foreground} mT={2} LineHeight={18}>
                   {membershipCopy(person)}
                 </Typography>
               </View>
             </View>
-            <Button
-              type="secondary"
-              label="Edit profile"
-              onPress={() =>
-                navigation.getParent()?.navigate('ProfileSetupScreen')
-              }
-            />
-            <Button
-              type="ghost"
-              label="Education"
-              onPress={() =>
-                navigation.getParent()?.navigate('EducationsScreen')
-              }
-              mt={12}
-              textColor={COLORS.mute}
-            />
-            {completion < 100 && (
-              <Button
-                label={`Complete profile (${completion}%)`}
-                onPress={() =>
-                  navigation.getParent()?.navigate('ProfileSetupScreen')
-                }
-                mt={12}
-              />
-            )}
+
+            <View style={styles.btnRow}>
+              <View style={styles.btnCol}>
+                <Button
+                  label="Edit profile"
+                  onPress={() =>
+                    navigation.getParent()?.navigate('ProfileSetupScreen')
+                  }
+                />
+              </View>
+              <View style={styles.btnCol}>
+                <Button
+                  type="outline"
+                  label="Education"
+                  textColor={COLORS.foreground}
+                  onPress={() =>
+                    navigation.getParent()?.navigate('EducationsScreen')
+                  }
+                />
+              </View>
+            </View>
           </View>
         }
       />
@@ -171,33 +164,46 @@ const styles = StyleSheet.create({
     top: 16,
     right: 20,
     zIndex: 10,
-    padding: 4,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.sm,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  actions: { gap: 0 },
+  actions: { gap: 12 },
   refreshSpinner: { marginBottom: 8 },
   memberCard: {
     borderWidth: 1,
-    borderColor: 'rgba(241,0,0,0.6)',
-    backgroundColor: 'rgba(241,0,0,0.05)',
-    borderRadius: RADIUS.md,
+    borderColor: 'rgba(241, 0, 0, 0.35)',
+    backgroundColor: 'rgba(241, 0, 0, 0.06)',
+    borderRadius: RADIUS.lg,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 12,
+    alignItems: 'center',
+    gap: 14,
   },
-  checkBox: {
-    width: 32,
-    height: 32,
+  shieldIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(241, 0, 0, 0.12)',
     borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: RADIUS.sm,
+    borderColor: 'rgba(241, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberCopy: { flex: 1 },
+  memberOverline: {
+    letterSpacing: 0.88,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  btnCol: {
+    flex: 1,
+  },
 });

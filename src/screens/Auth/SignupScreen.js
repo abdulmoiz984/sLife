@@ -34,13 +34,27 @@ const SignupScreen = ({ navigation }) => {
 
   return (
     <SafeAreaWrapper keyboardAvoid bgColor={COLORS.background}>
+      <View style={styles.topHeader}>
+        <Pressable
+          hitSlop={12}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.replace('LoginScreen');
+            }
+          }}
+          style={styles.backBtn}>
+          <Icon.ArrowLeft size={20} color={COLORS.foreground} />
+        </Pressable>
+        <AppLogo size={32} />
+        <View style={styles.spacer} />
+      </View>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        <View style={styles.logoWrap}>
-          <AppLogo size={72} />
-        </View>
+        <View style={styles.headerSpacer} />
 
         <Overline textAlign="center">Request Membership</Overline>
         <Typography
@@ -204,10 +218,31 @@ const SignupScreen = ({ navigation }) => {
 export default SignupScreen;
 
 const styles = StyleSheet.create({
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  backBtn: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  spacer: {
+    width: 36,
+  },
+  headerSpacer: {
+    height: 12,
+  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingBottom: 32,
   },
   logoWrap: {

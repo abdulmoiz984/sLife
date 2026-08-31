@@ -19,7 +19,7 @@ const SLIDES = [
   {
     img: onboardBoardroom,
     kicker: 'Chapter 01',
-    title: 'Welcome to Slutlife',
+    title: 'Welcome to Slife',
     body: "It's built for the professionals looking to date people on their level.",
   },
   {

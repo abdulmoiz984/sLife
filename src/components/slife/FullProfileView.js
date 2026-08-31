@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Image, StyleSheet, ScrollView } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Typography } from '../../atomComponents';
-import { COLORS, GRADIENTS, RADIUS } from '../../globalStyle/Theme';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { AVAILABILITY_LABELS } from '../../constants/mockData';
 import { getProfileCompletion } from '../../helpers/profileCompletion';
 import { onboardBoardroom } from '../../assets/images';
@@ -52,16 +52,52 @@ const FullProfileView = ({
       <View>
         <View style={styles.coverWrap}>
           <Image source={cover} style={styles.cover} />
-          <LinearGradient colors={GRADIENTS.cover} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.2)', 'rgba(13,13,13,0.7)', '#0D0D0D']}
+            style={StyleSheet.absoluteFill}
+          />
           {headerActions}
         </View>
-        <View style={styles.avatarWrap}>
-          <Avatar src={person.avatar} size={96} tier={person.tier} />
+        <View style={styles.headerHeroRow}>
+          <View style={styles.avatarWrap}>
+            <Avatar src={person.avatar} size={88} tier={person.tier} />
+          </View>
+          <View style={styles.headerInfo}>
+            <Typography
+              fixed
+              size={22}
+              fFamily="spaceGroteskBold700"
+              color={COLORS.foreground}
+              numberOfLines={1}>
+              {person.name}
+            </Typography>
+            {!!person.headline && (
+              <Typography fixed size={14} color={COLORS.body} mT={2} numberOfLines={2}>
+                {person.headline}
+              </Typography>
+            )}
+            <View style={styles.badgeRow}>
+              <VerifiedBadge tier={person.tier} />
+              {!!person.availability && (
+                <View style={styles.availBadge}>
+                  <Typography
+                    fixed
+                    size={10}
+                    fFamily="interSemiBold600"
+                    color={COLORS.primary}
+                    textTransform="uppercase"
+                    style={styles.trackSmall}>
+                    {AVAILABILITY_LABELS[person.availability]}
+                  </Typography>
+                </View>
+              )}
+            </View>
+          </View>
         </View>
       </View>
 
       <View style={styles.intro}>
-        {showCompletion && (
+        {showCompletion && completion < 100 && (
           <View style={styles.completion}>
             <View style={styles.completionRow}>
               <Typography
@@ -83,65 +119,44 @@ const FullProfileView = ({
           </View>
         )}
 
-        <Typography fixed size={24} fFamily="spaceGroteskBold700" color={COLORS.foreground}>
-          {person.name}
-        </Typography>
-        <Typography fixed size={14} color={COLORS.body} mT={4}>
-          {person.headline}
-        </Typography>
         {!!person.shortIntro && (
-          <Typography fixed size={13} color={COLORS.mute} mT={8} LineHeight={20}>
+          <Typography fixed size={13} color={COLORS.mute} mT={4} LineHeight={20}>
             {person.shortIntro}
           </Typography>
         )}
 
-        <View style={styles.badgeRow}>
-          <VerifiedBadge tier={person.tier} />
-          {!!person.availability && (
-            <View style={styles.availBadge}>
-              <Typography
-                fixed
-                size={11}
-                fFamily="interSemiBold600"
-                color={COLORS.primary}
-                textTransform="uppercase"
-                style={styles.trackSmall}>
-                {AVAILABILITY_LABELS[person.availability]}
-              </Typography>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.metaRow}>
+        <View style={styles.metaCard}>
           {(!!person.currentPosition || !!person.company) && (
             <View style={styles.metaItem}>
-              <Icon.Building size={16} color={COLORS.mute} />
-              <Typography fixed size={13} color={COLORS.mute}>
+              <Icon.Building size={16} color={COLORS.primary} />
+              <Typography fixed size={13} color={COLORS.foreground}>
                 {[person.currentPosition, person.company].filter(Boolean).join(' · ')}
               </Typography>
             </View>
           )}
           {!!person.location && (
             <View style={styles.metaItem}>
-              <Icon.Pin size={16} color={COLORS.mute} />
-              <Typography fixed size={13} color={COLORS.mute}>
+              <Icon.Pin size={16} color={COLORS.primary} />
+              <Typography fixed size={13} color={COLORS.body}>
                 {person.location}
               </Typography>
             </View>
           )}
+          {(person.industry || person.yearsExperience != null || person.timezone) && (
+            <View style={styles.metaItem}>
+              <Icon.Doc size={16} color={COLORS.primary} />
+              <Typography fixed size={13} color={COLORS.mute}>
+                {[
+                  person.industry,
+                  person.yearsExperience != null ? `${person.yearsExperience}+ years experience` : null,
+                  person.timezone?.replace(/_/g, ' '),
+                ]
+                  .filter(Boolean)
+                  .join('  ·  ')}
+              </Typography>
+            </View>
+          )}
         </View>
-
-        {(person.industry || person.yearsExperience != null || person.timezone) && (
-          <Typography fixed size={12} color={COLORS.mute} mT={8}>
-            {[
-              person.industry,
-              person.yearsExperience != null ? `${person.yearsExperience}+ years experience` : null,
-              person.timezone?.replace(/_/g, ' '),
-            ]
-              .filter(Boolean)
-              .join('  ·  ')}
-          </Typography>
-        )}
 
         {!!person.lookingFor?.length && (
           <View style={styles.chipWrap}>
@@ -521,31 +536,43 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   coverWrap: {
-    height: 160,
+    height: 175,
     overflow: 'hidden',
     position: 'relative',
   },
   cover: {
     width: '100%',
     height: '100%',
-    opacity: 0.4,
+    opacity: 0.55,
+  },
+  headerHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    marginTop: -44,
+    gap: 16,
+    zIndex: 2,
   },
   avatarWrap: {
-    paddingHorizontal: 20,
-    marginTop: -48,
     zIndex: 2,
+    flexShrink: 0,
+  },
+  headerInfo: {
+    flex: 1,
+    paddingTop: 8,
+    justifyContent: 'flex-end',
   },
   intro: {
     paddingHorizontal: 20,
-    marginTop: 12,
+    marginTop: 16,
   },
   completion: {
     marginBottom: 16,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
-    padding: 12,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: RADIUS.lg,
+    padding: 14,
   },
   completionRow: {
     flexDirection: 'row',
@@ -556,7 +583,7 @@ const styles = StyleSheet.create({
   trackSmall: { letterSpacing: 0.66 },
   barTrack: {
     height: 6,
-    backgroundColor: COLORS.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     borderRadius: RADIUS.full,
   },
@@ -566,28 +593,33 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
   },
   badgeRow: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   availBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: 'rgba(241,0,0,0.5)',
+    borderColor: 'rgba(241, 0, 0, 0.5)',
     borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(241, 0, 0, 0.05)',
   },
-  metaRow: {
-    marginTop: 12,
-    gap: 8,
+  metaCard: {
+    marginTop: 14,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    gap: 10,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
+    gap: 8,
   },
   chipWrap: {
     marginTop: 12,
@@ -595,7 +627,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   actions: {
-    marginTop: 20,
+    marginTop: 16,
   },
   body: {
     paddingHorizontal: 20,

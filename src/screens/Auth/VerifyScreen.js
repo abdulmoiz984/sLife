@@ -465,7 +465,15 @@ const VerifyScreen = ({ navigation }) => {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Pressable
-            onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())}
+            onPress={() => {
+              if (step > 0) {
+                setStep(step - 1);
+              } else if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.replace('LoginScreen');
+              }
+            }}
             hitSlop={8}
             style={styles.iconBtn}>
             <Icon.ArrowLeft size={20} color={COLORS.foreground} />
@@ -577,7 +585,7 @@ const VerifyScreen = ({ navigation }) => {
               />
               <TextField
                 label="Location"
-                placeholder="City, State, Country"
+                placeholder="e.g. New York, NY or Los Angeles, CA"
                 value={location}
                 onChangeText={setLocation}
                 autoCapitalize="words"

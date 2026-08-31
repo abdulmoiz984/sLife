@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
   View,
   Image,
@@ -7,10 +7,16 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
+import {
+  initPaymentSheet,
+  initStripe,
+  presentPaymentSheet,
+} from '@stripe/stripe-react-native';
 //------------------
 import {Typography} from '../../atomComponents';
 import {Button, AppLogo, ScreenOverlayLoader} from '../../components';
@@ -29,6 +35,7 @@ import {
 } from '../../api/subscriptionService';
 import {useSubscriptionMe} from '../../hooks/useSubscriptionMe';
 import {
+  FALLBACK_FEATURE_LABELS,
   PACKAGES_KEY,
   PORTAL_RETURN_URL,
   STRIPE_RETURN_URL,
@@ -41,25 +48,17 @@ import {
 } from '../../helpers/subscriptionHelpers';
 import {showMessage} from '../../utils';
 
-const FALLBACK_PERKS = [
-  'Unlimited profile views',
-  'Unlimited connection requests',
-  'Unlimited messaging',
-  'AI-powered recommendations',
-  'Advanced search filters',
-  'Priority verification support',
-];
-
-/** Load Stripe only when paying — keeps this screen opening reliably. */
-function getStripe() {
-  // eslint-disable-next-line global-require
-  return require('@stripe/stripe-react-native');
-}
+const {width: SCREEN_WIDTH} = Dimensions.get('window');
+const CARD_WIDTH = Math.min(SCREEN_WIDTH - 64, 340);
+const CARD_GAP = 12;
+const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
 
 const SubscriptionScreen = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [pendingWebhook, setPendingWebhook] = useState(false);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
+  const carouselRef = useRef(null);
 
   const {
     subscription,
@@ -72,12 +71,21 @@ const SubscriptionScreen = ({navigation}) => {
     queryFn: getPackages,
   });
 
-  const pkg = useMemo(() => {
-    const list = unwrapPackages(packagesRes).map(mapPackage).filter(Boolean);
-    return list.find(p => p.isCheckoutReady) || list[0] || null;
+  const packages = useMemo(() => {
+    return unwrapPackages(packagesRes).map(mapPackage).filter(Boolean);
   }, [packagesRes]);
 
-  const displayPkg = pkg || subscription?.package || null;
+  const selectedPackage = useMemo(() => {
+    if (selectedPackageId != null) {
+      const found = packages.find(p => p.id === selectedPackageId);
+      if (found) return found;
+    }
+    return packages.find(p => p.isCheckoutReady) || packages[0] || null;
+  }, [packages, selectedPackageId]);
+
+  const displayPkg = isSubscribed
+    ? subscription?.package || packages[0] || null
+    : selectedPackage;
 
   useFocusEffect(
     useCallback(() => {
@@ -89,19 +97,22 @@ const SubscriptionScreen = ({navigation}) => {
   const perks =
     displayPkg?.featureLabels?.length > 0
       ? displayPkg.featureLabels
-      : FALLBACK_PERKS;
+      : FALLBACK_FEATURE_LABELS;
 
   const priceLabel =
     displayPkg?.formattedPrice ||
     (displayPkg?.price != null ? `$${displayPkg.price}` : null) ||
-    '$9.99';
+    '$29.99';
 
-  const ctaLabel = subscribeCtaLabel(displayPkg);
-  const canCheckout = !!pkg?.id && pkg.isCheckoutReady && !isSubscribed;
+  const ctaLabel = selectedPackage
+    ? subscribeCtaLabel(selectedPackage)
+    : 'Select a package';
+  const canCheckout =
+    !!selectedPackage?.id && selectedPackage.isCheckoutReady && !isSubscribed;
 
   const badgeLabel = !isSubscribed
-    ? displayPkg?.trialDays > 0
-      ? `${displayPkg.trialDays}-day trial`
+    ? selectedPackage?.trialDays > 0
+      ? `${selectedPackage.trialDays}-day trial`
       : 'Most popular'
     : subscription?.onGracePeriod
       ? 'Cancelling'
@@ -127,8 +138,11 @@ const SubscriptionScreen = ({navigation}) => {
 
   const refreshStatus = async () => {
     try {
-      await invalidateSubscriptionQueries();
-      await refetchStatus();
+      await Promise.allSettled([
+        invalidateSubscriptionQueries(),
+        refetchStatus(),
+        refetchPackages(),
+      ]);
       showMessage({type: 'success', message: 'Subscription status updated.'});
     } catch (_) {
       showMessage({
@@ -138,25 +152,39 @@ const SubscriptionScreen = ({navigation}) => {
     }
   };
 
+  const handleSelectPackage = (pkg, index) => {
+    if (!pkg.isCheckoutReady) return;
+    setSelectedPackageId(pkg.id);
+    carouselRef.current?.scrollTo({
+      x: index * SNAP_INTERVAL,
+      animated: true,
+    });
+  };
+
+  const onMomentumScrollEnd = e => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / SNAP_INTERVAL);
+    if (packages[index] && packages[index].isCheckoutReady) {
+      setSelectedPackageId(packages[index].id);
+    }
+  };
+
   const subscribe = async () => {
-    if (!canCheckout || busy) return;
+    if (!canCheckout || busy || !selectedPackage?.id) return;
     setBusy(true);
     setPendingWebhook(false);
     try {
-      const res = await createPaymentSheet(pkg.id);
+      const res = await createPaymentSheet(selectedPackage.id);
       const sheet = res?.payment_sheet;
       if (!sheet?.intent_client_secret || !sheet?.publishable_key) {
         throw new Error(res?.message || 'Unable to initialize payment.');
       }
 
-      const {
-        initStripe,
-        initPaymentSheet,
-        presentPaymentSheet,
-      } = getStripe();
+      const merchantId = sheet.merchant_identifier || 'merchant.com.slife';
 
       await initStripe({
         publishableKey: sheet.publishable_key,
+        merchantIdentifier: merchantId,
         urlScheme: 'slife',
       });
 
@@ -165,14 +193,24 @@ const SubscriptionScreen = ({navigation}) => {
           ? {paymentIntentClientSecret: sheet.intent_client_secret}
           : {setupIntentClientSecret: sheet.intent_client_secret};
 
-      const {error: initError} = await initPaymentSheet({
+      const sheetParams = {
         merchantDisplayName: 'SLife',
         customerId: sheet.customer_id,
         customerSessionClientSecret: sheet.customer_session_client_secret,
         returnURL: STRIPE_RETURN_URL,
         allowsDelayedPaymentMethods: false,
+        applePay: {
+          merchantCountryCode: 'US',
+        },
         ...intent,
-      });
+      };
+
+      let {error: initError} = await initPaymentSheet(sheetParams);
+      if (initError && initError.message?.includes('merchantIdentifier')) {
+        delete sheetParams.applePay;
+        const fallback = await initPaymentSheet(sheetParams);
+        initError = fallback.error;
+      }
       if (initError) throw new Error(initError.message);
 
       const {error: paymentError} = await presentPaymentSheet();
@@ -182,7 +220,7 @@ const SubscriptionScreen = ({navigation}) => {
       }
 
       if (sheet.requires_subscription_activation && sheet.setup_intent_id) {
-        await activateTrial(pkg.id, sheet.setup_intent_id);
+        await activateTrial(selectedPackage.id, sheet.setup_intent_id);
       }
 
       const active = await waitForSubscriptionActive();
@@ -191,6 +229,7 @@ const SubscriptionScreen = ({navigation}) => {
           type: 'success',
           message: 'Welcome to SLife Membership.',
         });
+        await refreshStatus();
         return;
       }
 
@@ -229,6 +268,7 @@ const SubscriptionScreen = ({navigation}) => {
             try {
               const res = await runCancel();
               await invalidateSubscriptionQueries();
+              await refreshStatus();
               showMessage({
                 type: 'success',
                 message: res?.message || 'Subscription cancelled.',
@@ -251,6 +291,7 @@ const SubscriptionScreen = ({navigation}) => {
     try {
       const res = await runResume();
       await invalidateSubscriptionQueries();
+      await refreshStatus();
       showMessage({
         type: 'success',
         message: res?.message || 'Subscription resumed.',
@@ -299,7 +340,7 @@ const SubscriptionScreen = ({navigation}) => {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Header always outside ScrollView so it cannot disappear */}
+      {/* Header outside ScrollView */}
       <View style={[styles.header, {paddingTop: insets.top + 16}]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
           <Icon.Close size={20} color={COLORS.foreground} />
@@ -355,178 +396,327 @@ const SubscriptionScreen = ({navigation}) => {
               : subscription?.onTrial
                 ? 'You are on a free trial. Billing starts after the trial unless you cancel.'
                 : 'You have full access to messaging and advanced discovery.'
-            : 'Move beyond browse-mode. Message, match, and mine the full directory of verified leaders.'}
+            : 'Swipe and choose the plan that fits your networking goals.'}
         </Typography>
 
-        <View style={styles.perks}>
-          {perks.map(p => (
-            <View key={p} style={styles.perk}>
-              <Icon.Check size={16} color={COLORS.primary} strokeWidth={2.5} />
-              <Typography
-                fixed
-                size={14}
-                color={COLORS.foreground}
-                style={styles.perkText}>
-                {p}
-              </Typography>
+        {isSubscribed ? (
+          /* Subscribed active plan card */
+          <View style={styles.priceCard}>
+            <View style={styles.priceRow}>
+              <View style={styles.priceCopy}>
+                <Typography
+                  fixed
+                  size={12}
+                  fFamily="interSemiBold600"
+                  color={COLORS.mute}
+                  textTransform="uppercase"
+                  style={styles.track}>
+                  {displayPkg?.name || 'SLife Membership'}
+                </Typography>
+                <Typography
+                  fixed
+                  size={36}
+                  fFamily="spaceGroteskBold700"
+                  color={COLORS.foreground}
+                  mT={6}
+                  LineHeight={36}>
+                  {String(priceLabel).replace(/\/mo$/i, '').replace(/\/yr$/i, '')}
+                </Typography>
+                <Typography
+                  fixed
+                  size={12}
+                  color={COLORS.mute}
+                  textTransform="uppercase"
+                  mT={4}
+                  style={styles.track}>
+                  {displayPkg?.billingCycle === 'yearly'
+                    ? 'Per year'
+                    : 'Per month'}
+                </Typography>
+              </View>
+              <View
+                style={[
+                  styles.badge,
+                  {borderColor: badgeColor},
+                  !subscription?.onGracePeriod && styles.badgeSubscribed,
+                  subscription?.onGracePeriod && styles.badgeWarn,
+                ]}>
+                <Typography
+                  fixed
+                  size={11}
+                  fFamily="interSemiBold600"
+                  color={badgeColor}
+                  textTransform="uppercase"
+                  style={styles.track}>
+                  {badgeLabel}
+                </Typography>
+              </View>
             </View>
-          ))}
-        </View>
 
-        <View style={styles.priceCard}>
-          <View style={styles.priceRow}>
-            <View style={styles.priceCopy}>
-              <Typography
-                fixed
-                size={12}
-                fFamily="interSemiBold600"
-                color={COLORS.mute}
-                textTransform="uppercase"
-                style={styles.track}>
-                {displayPkg?.name || 'SLife Membership'}
+            {subscription?.paymentMethod?.lastFour ? (
+              <Typography fixed size={12} color={COLORS.body} mT={12}>
+                {subscription.paymentMethod.type || 'Card'} ····{' '}
+                {subscription.paymentMethod.lastFour}
               </Typography>
-              <Typography
-                fixed
-                size={36}
-                fFamily="spaceGroteskBold700"
-                color={COLORS.foreground}
-                mT={6}
-                LineHeight={36}>
-                {String(priceLabel).replace(/\/mo$/i, '')}
-              </Typography>
-              <Typography
-                fixed
-                size={12}
-                color={COLORS.mute}
-                textTransform="uppercase"
-                mT={4}
-                style={styles.track}>
-                {displayPkg?.billingCycle === 'yearly'
-                  ? 'Per year'
-                  : 'Per month'}
-              </Typography>
+            ) : null}
+
+            {displayPkg?.description && displayPkg.description.length > 0 ? (
+              <View style={styles.packageBullets}>
+                {displayPkg.description.map((item, idx) => (
+                  <View key={`${item}-${idx}`} style={styles.bulletRow}>
+                    <Icon.Check size={14} color={COLORS.primary} strokeWidth={2.5} />
+                    <Typography fixed size={13} color={COLORS.body} style={styles.bulletText}>
+                      {item}
+                    </Typography>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={styles.subscribeBtn}>
+              <Button
+                label="Manage billing"
+                onPress={onManageBilling}
+                loader={openingPortal}
+              />
             </View>
-            <View
-              style={[
-                styles.badge,
-                isSubscribed && {borderColor: badgeColor},
-                isSubscribed &&
-                  !subscription?.onGracePeriod &&
-                  styles.badgeSubscribed,
-                subscription?.onGracePeriod && styles.badgeWarn,
-              ]}>
+            {subscription?.onGracePeriod ? (
+              <View style={styles.secondaryBtn}>
+                <Button
+                  type="outline"
+                  label="Resume subscription"
+                  onPress={onResume}
+                  loader={resuming}
+                />
+              </View>
+            ) : (
+              <Pressable
+                style={styles.restore}
+                hitSlop={8}
+                onPress={confirmCancel}>
+                <Typography
+                  fixed
+                  size={11}
+                  fFamily="interSemiBold600"
+                  color={COLORS.mute}
+                  textTransform="uppercase"
+                  textAlign="center"
+                  style={styles.track}>
+                  Cancel subscription
+                </Typography>
+              </Pressable>
+            )}
+            <Pressable
+              style={styles.restore}
+              hitSlop={8}
+              onPress={refreshStatus}>
               <Typography
                 fixed
                 size={11}
                 fFamily="interSemiBold600"
-                color={badgeColor}
+                color={COLORS.mute}
                 textTransform="uppercase"
+                textAlign="center"
                 style={styles.track}>
-                {badgeLabel}
+                Refresh status
               </Typography>
-            </View>
+            </Pressable>
           </View>
+        ) : (
+          /* Multi-package Horizontal Carousel */
+          <View style={styles.carouselContainer}>
+            <ScrollView
+              ref={carouselRef}
+              horizontal
+              pagingEnabled={false}
+              snapToInterval={SNAP_INTERVAL}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselScrollContent}
+              onMomentumScrollEnd={onMomentumScrollEnd}>
+              {packages.map((item, index) => {
+                const isSelected = selectedPackage?.id === item.id;
+                const hasTrial = item.trialDays > 0;
+                const formattedPrice =
+                  item.formattedPrice ||
+                  (item.price != null ? `$${item.price}` : '—');
 
-          {isSubscribed && subscription?.paymentMethod?.lastFour ? (
-            <Typography fixed size={12} color={COLORS.body} mT={12}>
-              {subscription.paymentMethod.type || 'Card'} ····{' '}
-              {subscription.paymentMethod.lastFour}
-            </Typography>
-          ) : (
-            <Typography fixed size={12} color={COLORS.body} mT={12}>
-              {isSubscribed
-                ? 'Manage payment methods and invoices in the billing portal.'
-                : displayPkg?.trialDays > 0
-                  ? `Billed after your ${displayPkg.trialDays}-day trial unless cancelled. Cancel anytime.`
-                  : 'Billed monthly. Cancel anytime.'}
-            </Typography>
-          )}
+                return (
+                  <Pressable
+                    key={item.id}
+                    disabled={!item.isCheckoutReady}
+                    onPress={() => handleSelectPackage(item, index)}
+                    style={[
+                      styles.carouselCard,
+                      isSelected && styles.carouselCardActive,
+                      !item.isCheckoutReady && styles.carouselCardDisabled,
+                    ]}>
+                    <View style={styles.cardHeaderRow}>
+                      <View style={styles.radioAndName}>
+                        <View
+                          style={[
+                            styles.radioCircle,
+                            isSelected && styles.radioCircleSelected,
+                          ]}>
+                          {isSelected ? <View style={styles.radioDot} /> : null}
+                        </View>
+                        <Typography
+                          fixed
+                          size={16}
+                          fFamily="spaceGroteskBold700"
+                          color={isSelected ? COLORS.primary : COLORS.foreground}>
+                          {item.name}
+                        </Typography>
+                      </View>
 
-          {pendingWebhook && !isSubscribed ? (
-            <Typography fixed size={12} color={COLORS.primary} mT={10}>
-              Activation pending — tap Refresh status in a moment.
-            </Typography>
-          ) : null}
+                      {hasTrial ? (
+                        <View style={styles.trialBadge}>
+                          <Typography
+                            fixed
+                            size={10}
+                            fFamily="interSemiBold600"
+                            color={COLORS.primary}
+                            textTransform="uppercase"
+                            style={styles.track}>
+                            {item.trialDays}-day trial
+                          </Typography>
+                        </View>
+                      ) : !item.isCheckoutReady ? (
+                        <View style={styles.unavailableBadge}>
+                          <Typography
+                            fixed
+                            size={10}
+                            fFamily="interSemiBold600"
+                            color={COLORS.mute}
+                            textTransform="uppercase">
+                            Unavailable
+                          </Typography>
+                        </View>
+                      ) : null}
+                    </View>
 
-          {!isSubscribed ? (
-            <>
-              <View style={styles.subscribeBtn}>
-                <Button
-                  label={!pkg ? 'Loading package…' : ctaLabel}
-                  onPress={subscribe}
-                  disabled={!canCheckout || busy}
-                  loader={busy}
-                />
+                    <View style={styles.priceRowCompact}>
+                      <Typography
+                        fixed
+                        size={28}
+                        fFamily="spaceGroteskBold700"
+                        color={COLORS.foreground}>
+                        {String(formattedPrice).replace(/\/mo$/i, '').replace(/\/yr$/i, '')}
+                      </Typography>
+                      <Typography
+                        fixed
+                        size={13}
+                        fFamily="interSemiBold600"
+                        color={COLORS.mute}
+                        mL={6}>
+                        {item.billingCycle === 'yearly' ? '/ year' : '/ month'}
+                      </Typography>
+                    </View>
+
+                    {item.description && item.description.length > 0 ? (
+                      <View style={styles.packageBullets}>
+                        {item.description.map((bullet, idx) => (
+                          <View key={`${bullet}-${idx}`} style={styles.bulletRow}>
+                            <Icon.Check size={14} color={COLORS.primary} strokeWidth={2.5} />
+                            <Typography fixed size={13} color={COLORS.body} style={styles.bulletText}>
+                              {bullet}
+                            </Typography>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {packages.length > 1 ? (
+              <View style={styles.paginationDots}>
+                {packages.map((item, index) => {
+                  const isSelected = selectedPackage?.id === item.id;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      hitSlop={8}
+                      onPress={() => handleSelectPackage(item, index)}
+                      style={[styles.dot, isSelected && styles.activeDot]}
+                    />
+                  );
+                })}
               </View>
-              <Pressable
-                style={styles.restore}
-                hitSlop={8}
-                onPress={refreshStatus}>
-                <Typography
-                  fixed
-                  size={11}
-                  fFamily="interSemiBold600"
-                  color={COLORS.mute}
-                  textTransform="uppercase"
-                  textAlign="center"
-                  style={styles.track}>
-                  Refresh status
-                </Typography>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <View style={styles.subscribeBtn}>
-                <Button
-                  label="Manage billing"
-                  onPress={onManageBilling}
-                  loader={openingPortal}
-                />
-              </View>
-              {subscription?.onGracePeriod ? (
-                <View style={styles.secondaryBtn}>
-                  <Button
-                    type="outline"
-                    label="Resume subscription"
-                    onPress={onResume}
-                    loader={resuming}
-                  />
-                </View>
-              ) : (
-                <Pressable
-                  style={styles.restore}
-                  hitSlop={8}
-                  onPress={confirmCancel}>
+            ) : null}
+
+            {pendingWebhook ? (
+              <Typography fixed size={12} color={COLORS.primary} mT={10}>
+                Activation pending — tap Refresh status in a moment.
+              </Typography>
+            ) : null}
+
+            <View style={styles.subscribeBtn}>
+              <Button
+                label={!selectedPackage ? 'Loading packages…' : ctaLabel}
+                onPress={subscribe}
+                disabled={!canCheckout || busy}
+                loader={busy}
+              />
+            </View>
+            <Typography
+              fixed
+              size={11}
+              color={COLORS.mute}
+              textAlign="center"
+              mT={8}>
+              Accepts Credit/Debit Cards, Apple Pay & Cash App
+            </Typography>
+
+            <Pressable
+              style={styles.restore}
+              hitSlop={8}
+              onPress={refreshStatus}>
+              <Typography
+                fixed
+                size={11}
+                fFamily="interSemiBold600"
+                color={COLORS.mute}
+                textTransform="uppercase"
+                textAlign="center"
+                style={styles.track}>
+                Refresh status
+              </Typography>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Global entitlements section for subscribed users */}
+        {isSubscribed ? (
+          <>
+            <Typography
+              fixed
+              size={16}
+              fFamily="spaceGroteskBold700"
+              color={COLORS.foreground}
+              mT={32}
+              mB={16}>
+              Included in your plan
+            </Typography>
+
+            <View style={styles.perks}>
+              {perks.map((p, idx) => (
+                <View key={`${p}-${idx}`} style={styles.perk}>
+                  <Icon.Check size={16} color={COLORS.primary} strokeWidth={2.5} />
                   <Typography
                     fixed
-                    size={11}
-                    fFamily="interSemiBold600"
-                    color={COLORS.mute}
-                    textTransform="uppercase"
-                    textAlign="center"
-                    style={styles.track}>
-                    Cancel subscription
+                    size={14}
+                    color={COLORS.foreground}
+                    style={styles.perkText}>
+                    {p}
                   </Typography>
-                </Pressable>
-              )}
-              <Pressable
-                style={styles.restore}
-                hitSlop={8}
-                onPress={refreshStatus}>
-                <Typography
-                  fixed
-                  size={11}
-                  fFamily="interSemiBold600"
-                  color={COLORS.mute}
-                  textTransform="uppercase"
-                  textAlign="center"
-                  style={styles.track}>
-                  Refresh status
-                </Typography>
-              </Pressable>
-            </>
-          )}
-        </View>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
       </ScrollView>
 
       <ScreenOverlayLoader visible={overlayBusy} />
@@ -573,7 +763,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   preview: {
-    marginBottom: 32,
+    marginBottom: 24,
     backgroundColor: 'rgba(20,20,20,0.8)',
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -601,7 +791,115 @@ const styles = StyleSheet.create({
   },
   headline: {letterSpacing: -0.5},
   lead: {maxWidth: 320},
-  perks: {marginTop: 24},
+  carouselContainer: {
+    marginTop: 24,
+  },
+  carouselScrollContent: {
+    gap: CARD_GAP,
+    paddingVertical: 4,
+  },
+  carouselCard: {
+    width: CARD_WIDTH,
+    backgroundColor: COLORS.elevated,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+  },
+  carouselCardActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: 'rgba(255, 126, 0, 0.06)',
+  },
+  carouselCardDisabled: {
+    opacity: 0.5,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  radioAndName: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.mute,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  radioCircleSelected: {
+    borderColor: COLORS.primary,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
+  trialBadge: {
+    backgroundColor: 'rgba(255, 126, 0, 0.12)',
+    borderColor: COLORS.primary,
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  unavailableBadge: {
+    backgroundColor: 'rgba(150, 150, 150, 0.12)',
+    borderColor: COLORS.mute,
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  priceRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 8,
+    marginLeft: 30,
+  },
+  packageBullets: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    marginLeft: 30,
+    gap: 6,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bulletText: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    marginBottom: 4,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.border,
+  },
+  activeDot: {
+    width: 22,
+    backgroundColor: COLORS.primary,
+  },
+  perks: {marginTop: 8},
   perk: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -609,7 +907,7 @@ const styles = StyleSheet.create({
   },
   perkText: {marginLeft: 12},
   priceCard: {
-    marginTop: 32,
+    marginTop: 24,
     marginBottom: 8,
     backgroundColor: COLORS.elevated,
     borderWidth: 1,

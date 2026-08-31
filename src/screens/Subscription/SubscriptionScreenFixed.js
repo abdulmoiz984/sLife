@@ -1,7 +1,8 @@
-import React, {Component, useMemo, useState} from 'react';
+import React, {Component, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,6 +28,7 @@ import {
   resumeSubscription,
 } from '../../api/subscriptionService';
 import {
+  FALLBACK_FEATURE_LABELS,
   PACKAGES_KEY,
   PORTAL_RETURN_URL,
   STRIPE_RETURN_URL,
@@ -39,12 +41,10 @@ import {
 } from '../../helpers/subscriptionHelpers';
 import {showMessage} from '../../utils';
 
-const FALLBACK_PERKS = [
-  'Unlimited messaging',
-  'Advanced Discover filters',
-  'Priority visibility in Discover',
-  'Cancel anytime',
-];
+const {width: SCREEN_WIDTH} = Dimensions.get('window');
+const CARD_WIDTH = Math.min(SCREEN_WIDTH - 64, 340);
+const CARD_GAP = 12;
+const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
 
 class SubscriptionErrorBoundary extends Component {
   state = {error: null};
@@ -81,6 +81,8 @@ class SubscriptionErrorBoundary extends Component {
 const SubscriptionContent = ({navigation}) => {
   const [busy, setBusy] = useState(false);
   const [pendingWebhook, setPendingWebhook] = useState(false);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
+  const carouselRef = useRef(null);
 
   const {
     subscription,
@@ -99,21 +101,29 @@ const SubscriptionContent = ({navigation}) => {
     queryFn: getPackages,
   });
 
-  const pkg = useMemo(() => {
-    const packages = unwrapPackages(packagesResponse)
+  const packages = useMemo(() => {
+    return unwrapPackages(packagesResponse)
       .map(mapPackage)
       .filter(Boolean);
-    return packages.find(item => item.isCheckoutReady) || packages[0] || null;
   }, [packagesResponse]);
 
-  const displayPackage = pkg || subscription?.package || null;
-  const perks =
+  const selectedPackage = useMemo(() => {
+    if (selectedPackageId != null) {
+      const found = packages.find(item => item.id === selectedPackageId);
+      if (found) return found;
+    }
+    return packages.find(item => item.isCheckoutReady) || packages[0] || null;
+  }, [packages, selectedPackageId]);
+
+  const displayPackage = isSubscribed
+    ? subscription?.package || packages[0] || null
+    : selectedPackage;
+
+  const globalFeatures =
     displayPackage?.featureLabels?.length > 0
       ? displayPackage.featureLabels
-      : FALLBACK_PERKS;
-  const formattedPrice =
-    displayPackage?.formattedPrice ||
-    (displayPackage?.price != null ? `$${displayPackage.price}` : '—');
+      : FALLBACK_FEATURE_LABELS;
+
   const loading = statusLoading || packagesLoading;
 
   const {mutateAsync: runCancel, isPending: cancelling} = useCustomMutation({
@@ -134,20 +144,40 @@ const SubscriptionContent = ({navigation}) => {
     ]);
   };
 
+  const handleSelectPackage = (pkg, index) => {
+    if (!pkg.isCheckoutReady) return;
+    setSelectedPackageId(pkg.id);
+    carouselRef.current?.scrollTo({
+      x: index * SNAP_INTERVAL,
+      animated: true,
+    });
+  };
+
+  const onMomentumScrollEnd = e => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / SNAP_INTERVAL);
+    if (packages[index] && packages[index].isCheckoutReady) {
+      setSelectedPackageId(packages[index].id);
+    }
+  };
+
   const subscribe = async () => {
-    if (!pkg?.id || !pkg.isCheckoutReady || busy) return;
+    if (!selectedPackage?.id || !selectedPackage.isCheckoutReady || busy) return;
 
     setBusy(true);
     setPendingWebhook(false);
     try {
-      const response = await createPaymentSheet(pkg.id);
+      const response = await createPaymentSheet(selectedPackage.id);
       const sheet = response?.payment_sheet;
       if (!sheet?.intent_client_secret || !sheet?.publishable_key) {
         throw new Error(response?.message || 'Unable to initialize payment.');
       }
 
+      const merchantId = sheet.merchant_identifier || 'merchant.com.slife';
+
       await initStripe({
         publishableKey: sheet.publishable_key,
+        merchantIdentifier: merchantId,
         urlScheme: 'slife',
       });
 
@@ -156,14 +186,24 @@ const SubscriptionContent = ({navigation}) => {
           ? {paymentIntentClientSecret: sheet.intent_client_secret}
           : {setupIntentClientSecret: sheet.intent_client_secret};
 
-      const {error: setupError} = await initPaymentSheet({
+      const sheetParams = {
         merchantDisplayName: 'SLife',
         customerId: sheet.customer_id,
         customerSessionClientSecret: sheet.customer_session_client_secret,
         returnURL: STRIPE_RETURN_URL,
         allowsDelayedPaymentMethods: false,
+        applePay: {
+          merchantCountryCode: 'US',
+        },
         ...clientSecret,
-      });
+      };
+
+      let {error: setupError} = await initPaymentSheet(sheetParams);
+      if (setupError && setupError.message?.includes('merchantIdentifier')) {
+        delete sheetParams.applePay;
+        const fallback = await initPaymentSheet(sheetParams);
+        setupError = fallback.error;
+      }
       if (setupError) throw new Error(setupError.message);
 
       const {error: paymentError} = await presentPaymentSheet();
@@ -171,7 +211,7 @@ const SubscriptionContent = ({navigation}) => {
       if (paymentError) throw new Error(paymentError.message);
 
       if (sheet.requires_subscription_activation && sheet.setup_intent_id) {
-        await activateTrial(pkg.id, sheet.setup_intent_id);
+        await activateTrial(selectedPackage.id, sheet.setup_intent_id);
       }
 
       const active = await waitForSubscriptionActive();
@@ -281,15 +321,16 @@ const SubscriptionContent = ({navigation}) => {
         <Text style={styles.copy}>
           {isSubscribed
             ? 'Your plan includes messaging and advanced discovery.'
-            : 'Message matches and use advanced Discover filters.'}
+            : 'Swipe and choose the plan that fits your networking goals.'}
         </Text>
 
-        <View style={styles.packageCard}>
-          <View style={styles.packageHeader}>
-            <Text style={styles.packageName}>
-              {displayPackage?.name || 'SLife Membership'}
-            </Text>
-            {isSubscribed ? (
+        {isSubscribed ? (
+          /* Subscribed Card View */
+          <View style={styles.packageCard}>
+            <View style={styles.packageHeader}>
+              <Text style={styles.packageName}>
+                {displayPackage?.name || 'SLife Membership'}
+              </Text>
               <View
                 style={[
                   styles.badge,
@@ -303,48 +344,166 @@ const SubscriptionContent = ({navigation}) => {
                   {badge}
                 </Text>
               </View>
+            </View>
+
+            <Text style={styles.price}>
+              {displayPackage?.formattedPrice ||
+                (displayPackage?.price != null ? `$${displayPackage.price}` : '—')}
+            </Text>
+            <Text style={styles.billingCycle}>
+              {displayPackage?.billingCycle === 'yearly'
+                ? 'Per year'
+                : 'Per month'}
+            </Text>
+
+            {subscription?.paymentMethod?.lastFour ? (
+              <Text style={styles.paymentMethod}>
+                {subscription.paymentMethod.type || 'Card'} ending in{' '}
+                {subscription.paymentMethod.lastFour}
+              </Text>
+            ) : null}
+
+            {displayPackage?.description && displayPackage.description.length > 0 ? (
+              <View style={styles.packageBullets}>
+                {displayPackage.description.map((item, idx) => (
+                  <View key={`${item}-${idx}`} style={styles.descRow}>
+                    <Text style={styles.descCheck}>✓</Text>
+                    <Text style={styles.descText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
             ) : null}
           </View>
+        ) : (
+          /* Carousel Package Cards */
+          <View style={styles.carouselContainer}>
+            <ScrollView
+              ref={carouselRef}
+              horizontal
+              pagingEnabled={false}
+              snapToInterval={SNAP_INTERVAL}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselScrollContent}
+              onMomentumScrollEnd={onMomentumScrollEnd}>
+              {packages.map((item, index) => {
+                const isSelected = selectedPackage?.id === item.id;
+                const hasTrial = item.trialDays > 0;
+                const formattedPrice =
+                  item.formattedPrice ||
+                  (item.price != null ? `$${item.price}` : '—');
 
-          <Text style={styles.price}>
-            {String(formattedPrice).replace(/\/mo$/i, '')}
-          </Text>
-          <Text style={styles.billingCycle}>
-            {displayPackage?.billingCycle === 'yearly'
-              ? 'Per year'
-              : 'Per month'}
-          </Text>
+                return (
+                  <Pressable
+                    key={item.id}
+                    disabled={!item.isCheckoutReady}
+                    onPress={() => handleSelectPackage(item, index)}
+                    style={[
+                      styles.carouselCard,
+                      isSelected && styles.selectedCard,
+                      !item.isCheckoutReady && styles.disabledCard,
+                    ]}>
+                    <View style={styles.selectableCardHeader}>
+                      <View style={styles.radioAndTitle}>
+                        <View
+                          style={[
+                            styles.radioOuter,
+                            isSelected && styles.radioOuterSelected,
+                          ]}>
+                          {isSelected ? <View style={styles.radioInner} /> : null}
+                        </View>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.selectableCardName,
+                            isSelected && styles.selectedCardName,
+                          ]}>
+                          {item.name}
+                        </Text>
+                      </View>
 
-          {isSubscribed && subscription?.paymentMethod?.lastFour ? (
-            <Text style={styles.paymentMethod}>
-              {subscription.paymentMethod.type || 'Card'} ending in{' '}
-              {subscription.paymentMethod.lastFour}
-            </Text>
-          ) : null}
+                      {hasTrial ? (
+                        <View style={styles.trialBadge}>
+                          <Text style={styles.trialBadgeText}>
+                            {item.trialDays}-day trial
+                          </Text>
+                        </View>
+                      ) : !item.isCheckoutReady ? (
+                        <View style={styles.unavailableBadge}>
+                          <Text style={styles.unavailableBadgeText}>
+                            Unavailable
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
 
-          {!displayPackage && loading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading package…</Text>
-            </View>
-          ) : null}
+                    <View style={styles.priceRow}>
+                      <Text style={styles.selectablePrice}>
+                        {String(formattedPrice).replace(/\/mo$/i, '').replace(/\/yr$/i, '')}
+                      </Text>
+                      <Text style={styles.selectableCycle}>
+                        {item.billingCycle === 'yearly' ? ' / year' : ' / month'}
+                      </Text>
+                    </View>
 
-          {!displayPackage && packagesError ? (
-            <Text style={styles.errorText}>
-              Package details could not be loaded. Tap Refresh status.
-            </Text>
-          ) : null}
-        </View>
+                    {item.description && item.description.length > 0 ? (
+                      <View style={styles.packageBullets}>
+                        {item.description.map((bullet, idx) => (
+                          <View key={`${bullet}-${idx}`} style={styles.descRow}>
+                            <Text style={styles.descCheck}>✓</Text>
+                            <Text style={styles.descText}>{bullet}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
-        <Text style={styles.sectionTitle}>
-          {isSubscribed ? 'Included in your plan' : 'What you get'}
-        </Text>
-        {perks.map(perk => (
-          <View key={perk} style={styles.perkRow}>
-            <Text style={styles.check}>✓</Text>
-            <Text style={styles.perkText}>{perk}</Text>
+            {packages.length > 1 ? (
+              <View style={styles.paginationDots}>
+                {packages.map((item, index) => {
+                  const isSelected = selectedPackage?.id === item.id;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      hitSlop={8}
+                      onPress={() => handleSelectPackage(item, index)}
+                      style={[styles.dot, isSelected && styles.activeDot]}
+                    />
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {!packages.length && loading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading packages…</Text>
+              </View>
+            ) : null}
+
+            {!packages.length && packagesError ? (
+              <Text style={styles.errorText}>
+                Package details could not be loaded. Tap Refresh status.
+              </Text>
+            ) : null}
           </View>
-        ))}
+        )}
+
+        {isSubscribed ? (
+          <>
+            <Text style={styles.sectionTitle}>Included in your plan</Text>
+            {globalFeatures.map((perk, idx) => (
+              <View key={`${perk}-${idx}`} style={styles.perkRow}>
+                <Text style={styles.check}>✓</Text>
+                <Text style={styles.perkText}>{perk}</Text>
+              </View>
+            ))}
+          </>
+        ) : null}
 
         {pendingWebhook ? (
           <Text style={styles.pendingText}>
@@ -353,22 +512,29 @@ const SubscriptionContent = ({navigation}) => {
         ) : null}
 
         {!isSubscribed ? (
-          <Pressable
-            disabled={!pkg?.id || !pkg.isCheckoutReady || busy}
-            onPress={subscribe}
-            style={[
-              styles.primaryButton,
-              (!pkg?.id || !pkg.isCheckoutReady || busy) &&
-                styles.disabledButton,
-            ]}>
-            {busy ? (
-              <ActivityIndicator color={COLORS.white100} />
-            ) : (
-              <Text style={styles.primaryButtonText}>
-                {pkg ? subscribeCtaLabel(pkg) : 'Loading package…'}
-              </Text>
-            )}
-          </Pressable>
+          <>
+            <Pressable
+              disabled={!selectedPackage?.id || !selectedPackage.isCheckoutReady || busy}
+              onPress={subscribe}
+              style={[
+                styles.primaryButton,
+                (!selectedPackage?.id || !selectedPackage.isCheckoutReady || busy) &&
+                  styles.disabledButton,
+              ]}>
+              {busy ? (
+                <ActivityIndicator color={COLORS.white100} />
+              ) : (
+                <Text style={styles.primaryButtonText}>
+                  {selectedPackage
+                    ? subscribeCtaLabel(selectedPackage)
+                    : 'Select a package'}
+                </Text>
+              )}
+            </Pressable>
+            <Text style={styles.paymentMethodsHint}>
+              Accepts Credit/Debit Cards, Apple Pay & Cash App
+            </Text>
+          </>
         ) : (
           <>
             <Pressable
@@ -470,6 +636,152 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     marginTop: 10,
+  },
+  carouselContainer: {
+    marginTop: 24,
+  },
+  carouselScrollContent: {
+    gap: CARD_GAP,
+    paddingVertical: 4,
+  },
+  carouselCard: {
+    width: CARD_WIDTH,
+    backgroundColor: COLORS.elevated,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+  },
+  selectedCard: {
+    borderColor: COLORS.primary,
+    backgroundColor: 'rgba(255, 126, 0, 0.05)',
+  },
+  disabledCard: {
+    opacity: 0.5,
+  },
+  selectableCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  radioAndTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.mute,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  radioOuterSelected: {
+    borderColor: COLORS.primary,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
+  selectableCardName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.foreground,
+    flex: 1,
+  },
+  selectedCardName: {
+    color: COLORS.primary,
+  },
+  trialBadge: {
+    backgroundColor: 'rgba(255, 126, 0, 0.12)',
+    borderColor: COLORS.primary,
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  trialBadgeText: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  unavailableBadge: {
+    backgroundColor: 'rgba(150, 150, 150, 0.12)',
+    borderColor: COLORS.mute,
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  unavailableBadgeText: {
+    color: COLORS.mute,
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 10,
+    marginLeft: 30,
+  },
+  selectablePrice: {
+    color: COLORS.foreground,
+    fontSize: 26,
+    fontWeight: '700',
+  },
+  selectableCycle: {
+    color: COLORS.mute,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  packageBullets: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    marginLeft: 30,
+    gap: 6,
+  },
+  descRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  descCheck: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginRight: 8,
+  },
+  descText: {
+    color: COLORS.body,
+    fontSize: 13,
+    flex: 1,
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    marginBottom: 4,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.border,
+  },
+  activeDot: {
+    width: 22,
+    backgroundColor: COLORS.primary,
   },
   packageCard: {
     backgroundColor: COLORS.elevated,
@@ -590,6 +902,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textTransform: 'uppercase',
+  },
+  paymentMethodsHint: {
+    color: COLORS.mute,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 8,
   },
   disabledButton: {
     backgroundColor: COLORS.border,
