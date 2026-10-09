@@ -4,7 +4,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '../atomComponents';
 import { Button } from '../components';
-import { Overline } from '../components/slife';
 import { COLORS } from '../globalStyle/Theme';
 import {
   onboardBoardroom,
@@ -18,25 +17,21 @@ import { KEYS } from '../constants';
 const SLIDES = [
   {
     img: onboardBoardroom,
-    kicker: 'Chapter 01',
-    title: 'Welcome to Slife',
-    body: "It's built for the professionals looking to date people on their level.",
+    title: 'Welcome To S-life',
+    body: "It's built for the professional looking to network or date people on their level.",
   },
   {
     img: onboardHandshake,
-    kicker: 'Chapter 02',
     title: 'Connect with Leaders',
     body: 'Attend business networking events to engage with peers and possibly meet and date the person of your dreams.',
   },
   {
     img: onboardCharts,
-    kicker: 'Chapter 03',
     title: 'Grow your Career',
     body: 'Meet driven people who share your goals and values, find your partner, and open doors to elevate your career or business.',
   },
   {
     img: onboardLounge,
-    kicker: 'Chapter 04',
     title: 'Private. Professional. Powerful.',
     body: 'Your business circle, elevated.',
   },
@@ -61,8 +56,8 @@ const OnboardingScreen = ({ navigation }) => {
 
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.92)', '#000000']}
-        locations={[0, 0.35, 0.72, 1]}
+        colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.88)', '#000000']}
+        locations={[0, 0.3, 0.72, 1]}
         style={styles.scrim}
       />
 
@@ -87,8 +82,6 @@ const OnboardingScreen = ({ navigation }) => {
             styles.copy,
             { paddingBottom: Math.max(insets.bottom, 16) + 24 },
           ]}>
-          <Overline style={styles.kicker}>{slide.kicker}</Overline>
-
           <Typography
             fixed
             size={32}
@@ -177,9 +170,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: 24,
-  },
-  kicker: {
-    marginBottom: 12,
   },
   title: {
     maxWidth: 340,
