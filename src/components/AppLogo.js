@@ -2,8 +2,8 @@ import React from 'react';
 import { Image, StyleSheet } from 'react-native';
 import { logo } from '../assets/images';
 
-/** Brand mark aspect from SLifeLogo.png (3756×3724). */
-const LOGO_ASPECT = 3756 / 3724;
+/** Brand mark aspect from SLifeLogo.png (1024×1015). */
+const LOGO_ASPECT = 1024 / 1015;
 
 /**
  * App logo — uses SLifeLogo.png everywhere via assets/images `logo`.
