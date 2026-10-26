@@ -1,4 +1,4 @@
-package com.slife
+package com.sh.app.slifeconnect
 
 import android.app.Application
 import com.facebook.react.PackageList

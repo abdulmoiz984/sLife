@@ -1,5 +1,5 @@
 {
-  "name": "sLife",
+  "name": "slife",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "start": "react-native start --port 8081",
     "start:clean": "react-native start --port 8081 --reset-cache",
-    "metro": "start \"sLife Metro\" cmd /k \"npm start\"",
+    "metro": "start \"slife Metro\" cmd /k \"npm start\"",
     "test": "jest"
   },
   "dependencies": {

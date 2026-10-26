@@ -1,4 +1,4 @@
-package com.slife
+package com.sh.app.slifeconnect
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
