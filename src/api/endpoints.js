@@ -1,7 +1,7 @@
 // ✅ Base URLs — from mobile-api-integration.md
 export const BASE_URL = __DEV__
-  ? 'https://pro-fixer.demoappprojects.com/slife/'
-  : 'https://pro-fixer.demoappprojects.com/slife/';
+  ? 'https://app.theslife.com/public/'
+  : 'https://app.theslife.com/public/';
 
 export const API_DOMAIN = `${BASE_URL}api/`;
 
