@@ -24,6 +24,14 @@ export const activateTrial = async (packageId, setupIntentId) => {
   return response.data;
 };
 
+/** POST /subscriptions/change-plan — upgrade / downgrade / switch active subscription. */
+export const changeSubscriptionPlan = async packageId => {
+  const response = await api.post(ENDPOINTS.SUBSCRIPTION_CHANGE_PLAN, {
+    package_id: packageId,
+  });
+  return response.data;
+};
+
 /** GET /subscriptions/me */
 export const getSubscriptionMe = async () => {
   const response = await api.get(ENDPOINTS.SUBSCRIPTION_ME);

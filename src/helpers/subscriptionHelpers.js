@@ -1,11 +1,28 @@
 import { AppState, Linking } from 'react-native';
-import { queryClient } from '../api/api';
+import { queryClient, storage } from '../api/api';
 import { API_ORIGIN } from '../api/endpoints';
 import { getSubscriptionMe } from '../api/subscriptionService';
 import { navigate } from '../navigation/NavigationService';
 
 export const SUBSCRIPTION_ME_KEY = ['subscription', 'me'];
 export const PACKAGES_KEY = ['packages'];
+const STRIPE_PUBLISHABLE_KEY_STORAGE = 'stripe_publishable_key';
+
+export function saveStripePublishableKey(key) {
+  if (typeof key === 'string' && key.trim()) {
+    try {
+      storage.set(STRIPE_PUBLISHABLE_KEY_STORAGE, key.trim());
+    } catch (_) {}
+  }
+}
+
+export function getStripePublishableKey() {
+  try {
+    return storage.getString(STRIPE_PUBLISHABLE_KEY_STORAGE) || null;
+  } catch (_) {
+    return null;
+  }
+}
 
 /** PaymentSheet returnURL — register native scheme `slife`. */
 export const STRIPE_RETURN_URL = 'slife://stripe-redirect';
@@ -68,6 +85,9 @@ export function mapPackage(raw) {
       Array.isArray(raw.feature_labels) && raw.feature_labels.length > 0
         ? raw.feature_labels
         : FALLBACK_FEATURE_LABELS,
+    dailyMessageLimit:
+      raw.daily_message_limit != null ? Number(raw.daily_message_limit) : null,
+    messageLimitLabel: raw.message_limit_label || null,
     isCheckoutReady: raw.is_checkout_ready !== false,
     raw,
   };
@@ -77,6 +97,7 @@ export function mapSubscription(raw) {
   if (!raw) return null;
   const pkg = raw.package ? mapPackage(raw.package) : null;
   const pm = raw.payment_method || null;
+  const ma = raw.message_allowance || null;
   return {
     isSubscribed: !!raw.is_subscribed,
     onTrial: !!raw.on_trial,
@@ -85,6 +106,15 @@ export function mapSubscription(raw) {
     trialEndsAt: raw.trial_ends_at || null,
     endsAt: raw.ends_at || null,
     package: pkg,
+    messageAllowance: ma
+      ? {
+          limit: ma.limit != null ? Number(ma.limit) : null,
+          used: Number(ma.used || 0),
+          remaining: ma.remaining != null ? Number(ma.remaining) : null,
+          unlimited: !!ma.unlimited,
+          resetsAt: ma.resets_at || null,
+        }
+      : null,
     paymentMethod: pm
       ? {
           type: pm.type || null,
@@ -93,6 +123,71 @@ export function mapSubscription(raw) {
       : null,
     raw,
   };
+}
+
+/**
+ * Monthly-equivalent package price for upgrade/downgrade comparison.
+ * Yearly packages are normalized as `price / 12`.
+ */
+export function getMonthlyEquivalentPrice(pkg) {
+  const price = Number(pkg?.price ?? 0);
+  if (!Number.isFinite(price)) return 0;
+  return pkg?.billingCycle === 'yearly' ? price / 12 : price;
+}
+
+/**
+ * Returns 'upgrade' | 'downgrade' | 'switch' comparing target to current package.
+ */
+export function getPlanChangeType(currentPkg, targetPkg) {
+  if (!currentPkg || !targetPkg) return 'switch';
+  const currentMonthly = getMonthlyEquivalentPrice(currentPkg);
+  const targetMonthly = getMonthlyEquivalentPrice(targetPkg);
+  const diff = targetMonthly - currentMonthly;
+  if (Math.abs(diff) < 0.005) return 'switch';
+  return diff > 0 ? 'upgrade' : 'downgrade';
+}
+
+export function getPlanChangeCtaLabel(currentPkg, targetPkg) {
+  if (!targetPkg) return 'Select a plan';
+  if (currentPkg?.id != null && targetPkg.id === currentPkg.id) {
+    return 'Current plan';
+  }
+  const type = getPlanChangeType(currentPkg, targetPkg);
+  if (type === 'upgrade') return `Upgrade to ${targetPkg.name}`;
+  if (type === 'downgrade') return `Downgrade to ${targetPkg.name}`;
+  return `Switch to ${targetPkg.name}`;
+}
+
+export function getPlanChangeConfirmCopy(changeType) {
+  if (changeType === 'upgrade') {
+    return "You'll move to this plan immediately. Stripe will prorate the unused time on your current plan and charge the difference when required.";
+  }
+  if (changeType === 'downgrade') {
+    return "You'll move to this plan immediately. Stripe will credit unused time toward future invoices when prorations are enabled.";
+  }
+  return "You'll move to this plan immediately.";
+}
+
+export function formatMessageAllowance(subscription, displayPackage) {
+  const ma = subscription?.messageAllowance;
+  if (ma) {
+    if (ma.unlimited) {
+      return 'Unlimited daily messages';
+    }
+    if (ma.limit != null && ma.remaining != null) {
+      return `Daily messages: ${ma.remaining} of ${ma.limit} remaining today`;
+    }
+    if (ma.limit != null) {
+      return `Up to ${ma.limit} messages per day`;
+    }
+  }
+  if (displayPackage?.messageLimitLabel) {
+    return displayPackage.messageLimitLabel;
+  }
+  if (displayPackage?.dailyMessageLimit != null) {
+    return `Up to ${displayPackage.dailyMessageLimit} messages per day`;
+  }
+  return null;
 }
 
 export function subscribeCtaLabel(pkg) {

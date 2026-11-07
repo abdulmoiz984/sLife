@@ -1,5 +1,11 @@
 import { ENDPOINTS } from './endpoints';
-import api from './api';
+import api, { queryClient } from './api';
+
+/**
+ * Same key as SUBSCRIPTION_ME_KEY in helpers/subscriptionHelpers.js.
+ * Kept inline to avoid a circular import (subscriptionHelpers → navigation → chat).
+ */
+const SUBSCRIPTION_ME_QUERY_KEY = ['subscription', 'me'];
 
 export const getConversations = async (params = {}) => {
   const response = await api.get(ENDPOINTS.CHATS, {
@@ -27,11 +33,19 @@ export const getChatMessages = async (conversationId, params = {}) => {
 };
 
 export const sendChatMessage = async (conversationId, body) => {
-  const response = await api.post(ENDPOINTS.CHAT_MESSAGES(conversationId), {
-    client_message_id: body.client_message_id,
-    body: body.body,
-  });
-  return response.data;
+  try {
+    const response = await api.post(ENDPOINTS.CHAT_MESSAGES(conversationId), {
+      client_message_id: body.client_message_id,
+      body: body.body,
+    });
+    return response.data;
+  } finally {
+    // Daily message allowance (GET /subscriptions/me → message_allowance) changes
+    // with every send — and a rejected send may mean the limit was reached.
+    queryClient
+      .invalidateQueries({ queryKey: SUBSCRIPTION_ME_QUERY_KEY })
+      .catch(() => {});
+  }
 };
 
 export const markChatRead = async (conversationId, lastMessageId) => {

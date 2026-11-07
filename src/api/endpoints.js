@@ -1,7 +1,9 @@
 // ✅ Base URLs — from mobile-api-integration.md
 export const BASE_URL = __DEV__
-  ? 'https://app.theslife.com/public/'
+  ? 'https://pro-fixer.demoappprojects.com/slife/'
   : 'https://app.theslife.com/public/';
+
+
 
 export const API_DOMAIN = `${BASE_URL}api/`;
 
@@ -71,6 +73,7 @@ export const ENDPOINTS = {
   PACKAGES: 'packages',
   SUBSCRIPTION_PAYMENT_SHEET: 'subscriptions/payment-sheet',
   SUBSCRIPTION_ACTIVATE_TRIAL: 'subscriptions/activate-trial',
+  SUBSCRIPTION_CHANGE_PLAN: 'subscriptions/change-plan',
   SUBSCRIPTION_ME: 'subscriptions/me',
   SUBSCRIPTION_CANCEL: 'subscriptions/cancel',
   SUBSCRIPTION_RESUME: 'subscriptions/resume',

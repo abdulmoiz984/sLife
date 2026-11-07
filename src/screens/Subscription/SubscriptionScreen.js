@@ -13,6 +13,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 import {
+  confirmPayment,
   initPaymentSheet,
   initStripe,
   presentPaymentSheet,
@@ -23,11 +24,13 @@ import {Button, AppLogo, ScreenOverlayLoader} from '../../components';
 import {Icon, Overline, ShimmerBlock} from '../../components/slife';
 import {COLORS, RADIUS} from '../../globalStyle/Theme';
 import {paywallBg} from '../../assets/images';
+import {queryClient} from '../../api/api';
 import {useCustomQuery} from '../../query/useCustomQuery';
 import {useCustomMutation} from '../../query/useCustomMutation';
 import {
   activateTrial,
   cancelSubscription,
+  changeSubscriptionPlan,
   createBillingPortal,
   createPaymentSheet,
   getPackages,
@@ -35,13 +38,19 @@ import {
 } from '../../api/subscriptionService';
 import {useSubscriptionMe} from '../../hooks/useSubscriptionMe';
 import {
-  FALLBACK_FEATURE_LABELS,
   PACKAGES_KEY,
   PORTAL_RETURN_URL,
   STRIPE_RETURN_URL,
+  SUBSCRIPTION_ME_KEY,
+  formatMessageAllowance,
+  getPlanChangeConfirmCopy,
+  getPlanChangeCtaLabel,
+  getPlanChangeType,
+  getStripePublishableKey,
   invalidateSubscriptionQueries,
   mapPackage,
   openPortalUrl,
+  saveStripePublishableKey,
   subscribeCtaLabel,
   unwrapPackages,
   waitForSubscriptionActive,
@@ -75,17 +84,52 @@ const SubscriptionScreen = ({navigation}) => {
     return unwrapPackages(packagesRes).map(mapPackage).filter(Boolean);
   }, [packagesRes]);
 
+  const currentPackageId = subscription?.package?.id ?? null;
+
   const selectedPackage = useMemo(() => {
     if (selectedPackageId != null) {
       const found = packages.find(p => p.id === selectedPackageId);
-      if (found) return found;
+      if (found && (!isSubscribed || found.id !== currentPackageId)) {
+        return found;
+      }
+    }
+    if (isSubscribed) {
+      return (
+        packages.find(p => p.isCheckoutReady && p.id !== currentPackageId) ||
+        packages.find(p => p.id !== currentPackageId) ||
+        null
+      );
     }
     return packages.find(p => p.isCheckoutReady) || packages[0] || null;
-  }, [packages, selectedPackageId]);
+  }, [packages, selectedPackageId, isSubscribed, currentPackageId]);
 
-  const displayPkg = isSubscribed
-    ? subscription?.package || packages[0] || null
-    : selectedPackage;
+  const displayPkg = useMemo(() => {
+    if (!isSubscribed) return selectedPackage;
+    const subPkg = subscription?.package;
+    const matchedPkg = subPkg?.id
+      ? packages.find(p => p.id === subPkg.id)
+      : packages[0];
+    if (subPkg && matchedPkg) {
+      return {
+        ...matchedPkg,
+        ...subPkg,
+        description:
+          subPkg.description?.length > 0
+            ? subPkg.description
+            : matchedPkg.description,
+        dailyMessageLimit:
+          subPkg.dailyMessageLimit ?? matchedPkg.dailyMessageLimit,
+        messageLimitLabel:
+          subPkg.messageLimitLabel || matchedPkg.messageLimitLabel,
+      };
+    }
+    return subPkg || matchedPkg || null;
+  }, [isSubscribed, subscription, packages, selectedPackage]);
+
+  const messageAllowanceText = useMemo(
+    () => formatMessageAllowance(subscription, displayPkg),
+    [subscription, displayPkg],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -93,11 +137,6 @@ const SubscriptionScreen = ({navigation}) => {
       refetchPackages();
     }, [refetchStatus, refetchPackages]),
   );
-
-  const perks =
-    displayPkg?.featureLabels?.length > 0
-      ? displayPkg.featureLabels
-      : FALLBACK_FEATURE_LABELS;
 
   const priceLabel =
     displayPkg?.formattedPrice ||
@@ -135,6 +174,10 @@ const SubscriptionScreen = ({navigation}) => {
   const {mutateAsync: runPortal, isPending: openingPortal} = useCustomMutation({
     mutationFn: () => createBillingPortal(PORTAL_RETURN_URL),
   });
+  const {mutateAsync: runChangePlan, isPending: changingPlan} =
+    useCustomMutation({
+      mutationFn: changeSubscriptionPlan,
+    });
 
   const refreshStatus = async () => {
     try {
@@ -154,6 +197,7 @@ const SubscriptionScreen = ({navigation}) => {
 
   const handleSelectPackage = (pkg, index) => {
     if (!pkg.isCheckoutReady) return;
+    if (isSubscribed && pkg.id === currentPackageId) return;
     setSelectedPackageId(pkg.id);
     carouselRef.current?.scrollTo({
       x: index * SNAP_INTERVAL,
@@ -164,8 +208,13 @@ const SubscriptionScreen = ({navigation}) => {
   const onMomentumScrollEnd = e => {
     const offsetX = e.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / SNAP_INTERVAL);
-    if (packages[index] && packages[index].isCheckoutReady) {
-      setSelectedPackageId(packages[index].id);
+    const candidate = packages[index];
+    if (
+      candidate &&
+      candidate.isCheckoutReady &&
+      (!isSubscribed || candidate.id !== currentPackageId)
+    ) {
+      setSelectedPackageId(candidate.id);
     }
   };
 
@@ -181,6 +230,7 @@ const SubscriptionScreen = ({navigation}) => {
       }
 
       const merchantId = sheet.merchant_identifier || 'merchant.com.slife';
+      saveStripePublishableKey(sheet.publishable_key);
 
       await initStripe({
         publishableKey: sheet.publishable_key,
@@ -324,7 +374,105 @@ const SubscriptionScreen = ({navigation}) => {
     }
   };
 
-  const overlayBusy = busy || cancelling || resuming || openingPortal;
+  const executeChangePlan = async targetPkg => {
+    if (!targetPkg?.id || busy || changingPlan) return;
+    setBusy(true);
+    try {
+      const res = await runChangePlan(targetPkg.id);
+
+      if (res?.requires_action && res?.payment_intent_client_secret) {
+        // Server-provided key only: change-plan response, else the key saved
+        // from this device's last POST /subscriptions/payment-sheet.
+        const pubKey =
+          res?.publishable_key ||
+          res?.payment_sheet?.publishable_key ||
+          subscription?.raw?.publishable_key ||
+          getStripePublishableKey();
+        if (!pubKey) {
+          throw new Error(
+            'Your plan was changed, but your bank needs extra verification. Open Manage billing to complete the payment.',
+          );
+        }
+        saveStripePublishableKey(pubKey);
+        await initStripe({
+          publishableKey: pubKey,
+          merchantIdentifier: 'merchant.com.slife',
+          urlScheme: 'slife',
+        });
+        const {error: confirmError} = await confirmPayment(
+          res.payment_intent_client_secret,
+        );
+        if (confirmError) {
+          throw new Error(
+            confirmError.message ||
+              'Additional payment confirmation could not be completed.',
+          );
+        }
+      } else if (res?.subscription) {
+        queryClient.setQueryData(SUBSCRIPTION_ME_KEY, res);
+      }
+
+      setSelectedPackageId(null);
+      await Promise.allSettled([
+        invalidateSubscriptionQueries(),
+        refetchStatus(),
+        refetchPackages(),
+      ]);
+      showMessage({
+        type: 'success',
+        message: res?.message || 'Subscription plan updated.',
+      });
+    } catch (err) {
+      await Promise.allSettled([
+        invalidateSubscriptionQueries(),
+        refetchStatus(),
+        refetchPackages(),
+      ]);
+      showMessage({
+        type: 'danger',
+        message:
+          err?.response?.data?.errors?.package_id?.[0] ||
+          err?.response?.data?.errors?.subscription?.[0] ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Could not change subscription plan. Please try again.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmChangePlan = () => {
+    if (
+      !selectedPackage?.id ||
+      !selectedPackage.isCheckoutReady ||
+      selectedPackage.id === currentPackageId ||
+      busy ||
+      changingPlan
+    ) {
+      return;
+    }
+    const changeType = getPlanChangeType(displayPkg, selectedPackage);
+    const title = getPlanChangeCtaLabel(displayPkg, selectedPackage);
+    const copy = getPlanChangeConfirmCopy(changeType);
+    const actionLabel =
+      changeType === 'upgrade'
+        ? 'Upgrade'
+        : changeType === 'downgrade'
+          ? 'Downgrade'
+          : 'Switch plan';
+
+    Alert.alert(title, copy, [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: actionLabel,
+        onPress: () => executeChangePlan(selectedPackage),
+      },
+    ]);
+  };
+
+  const overlayBusy =
+    busy || cancelling || resuming || openingPortal || changingPlan;
 
   return (
     <View style={styles.root}>
@@ -460,6 +608,17 @@ const SubscriptionScreen = ({navigation}) => {
               </Typography>
             ) : null}
 
+            {messageAllowanceText ? (
+              <Typography
+                fixed
+                size={12}
+                fFamily="interSemiBold600"
+                color={COLORS.primary}
+                mT={10}>
+                {messageAllowanceText}
+              </Typography>
+            ) : null}
+
             {displayPkg?.description && displayPkg.description.length > 0 ? (
               <View style={styles.packageBullets}>
                 {displayPkg.description.map((item, idx) => (
@@ -475,6 +634,7 @@ const SubscriptionScreen = ({navigation}) => {
 
             <View style={styles.subscribeBtn}>
               <Button
+                type={packages.length > 1 ? 'outline' : undefined}
                 label="Manage billing"
                 onPress={onManageBilling}
                 loader={openingPortal}
@@ -506,25 +666,40 @@ const SubscriptionScreen = ({navigation}) => {
                 </Typography>
               </Pressable>
             )}
-            <Pressable
-              style={styles.restore}
-              hitSlop={8}
-              onPress={refreshStatus}>
-              <Typography
-                fixed
-                size={11}
-                fFamily="interSemiBold600"
-                color={COLORS.mute}
-                textTransform="uppercase"
-                textAlign="center"
-                style={styles.track}>
-                Refresh status
-              </Typography>
-            </Pressable>
+            {packages.length <= 1 ? (
+              <Pressable
+                style={styles.restore}
+                hitSlop={8}
+                onPress={refreshStatus}>
+                <Typography
+                  fixed
+                  size={11}
+                  fFamily="interSemiBold600"
+                  color={COLORS.mute}
+                  textTransform="uppercase"
+                  textAlign="center"
+                  style={styles.track}>
+                  Refresh status
+                </Typography>
+              </Pressable>
+            ) : null}
           </View>
-        ) : (
+        ) : null}
+
+        {!isSubscribed || packages.length > 1 ? (
           /* Multi-package Horizontal Carousel */
           <View style={styles.carouselContainer}>
+            {isSubscribed ? (
+              <Typography
+                fixed
+                size={16}
+                fFamily="spaceGroteskBold700"
+                color={COLORS.foreground}
+                mB={12}>
+                Change your plan
+              </Typography>
+            ) : null}
+
             <ScrollView
               ref={carouselRef}
               horizontal
@@ -536,21 +711,32 @@ const SubscriptionScreen = ({navigation}) => {
               contentContainerStyle={styles.carouselScrollContent}
               onMomentumScrollEnd={onMomentumScrollEnd}>
               {packages.map((item, index) => {
-                const isSelected = selectedPackage?.id === item.id;
-                const hasTrial = item.trialDays > 0;
+                const isCurrentPlan =
+                  isSubscribed &&
+                  currentPackageId != null &&
+                  item.id === currentPackageId;
+                const isSelected =
+                  !isCurrentPlan && selectedPackage?.id === item.id;
+                const hasTrial = !isSubscribed && item.trialDays > 0;
+                const changeType =
+                  isSubscribed && !isCurrentPlan
+                    ? getPlanChangeType(displayPkg, item)
+                    : null;
                 const formattedPrice =
                   item.formattedPrice ||
                   (item.price != null ? `$${item.price}` : '—');
+                const isSelectable = item.isCheckoutReady && !isCurrentPlan;
 
                 return (
                   <Pressable
                     key={item.id}
-                    disabled={!item.isCheckoutReady}
+                    disabled={!isSelectable}
                     onPress={() => handleSelectPackage(item, index)}
                     style={[
                       styles.carouselCard,
                       isSelected && styles.carouselCardActive,
-                      !item.isCheckoutReady && styles.carouselCardDisabled,
+                      (!item.isCheckoutReady || isCurrentPlan) &&
+                        styles.carouselCardDisabled,
                     ]}>
                     <View style={styles.cardHeaderRow}>
                       <View style={styles.radioAndName}>
@@ -570,7 +756,34 @@ const SubscriptionScreen = ({navigation}) => {
                         </Typography>
                       </View>
 
-                      {hasTrial ? (
+                      {isCurrentPlan ? (
+                        <View style={styles.unavailableBadge}>
+                          <Typography
+                            fixed
+                            size={10}
+                            fFamily="interSemiBold600"
+                            color={COLORS.success}
+                            textTransform="uppercase">
+                            Current plan
+                          </Typography>
+                        </View>
+                      ) : changeType ? (
+                        <View style={styles.trialBadge}>
+                          <Typography
+                            fixed
+                            size={10}
+                            fFamily="interSemiBold600"
+                            color={COLORS.primary}
+                            textTransform="uppercase"
+                            style={styles.track}>
+                            {changeType === 'upgrade'
+                              ? 'Upgrade'
+                              : changeType === 'downgrade'
+                                ? 'Downgrade'
+                                : 'Switch'}
+                          </Typography>
+                        </View>
+                      ) : hasTrial ? (
                         <View style={styles.trialBadge}>
                           <Typography
                             fixed
@@ -654,21 +867,38 @@ const SubscriptionScreen = ({navigation}) => {
             ) : null}
 
             <View style={styles.subscribeBtn}>
-              <Button
-                label={!selectedPackage ? 'Loading packages…' : ctaLabel}
-                onPress={subscribe}
-                disabled={!canCheckout || busy}
-                loader={busy}
-              />
+              {isSubscribed ? (
+                <Button
+                  label={getPlanChangeCtaLabel(displayPkg, selectedPackage)}
+                  onPress={confirmChangePlan}
+                  disabled={
+                    !selectedPackage?.id ||
+                    !selectedPackage.isCheckoutReady ||
+                    selectedPackage.id === currentPackageId ||
+                    busy ||
+                    changingPlan
+                  }
+                  loader={busy || changingPlan}
+                />
+              ) : (
+                <Button
+                  label={!selectedPackage ? 'Loading packages…' : ctaLabel}
+                  onPress={subscribe}
+                  disabled={!canCheckout || busy}
+                  loader={busy}
+                />
+              )}
             </View>
-            <Typography
-              fixed
-              size={11}
-              color={COLORS.mute}
-              textAlign="center"
-              mT={8}>
-              Accepts Credit/Debit Cards, Apple Pay & Cash App
-            </Typography>
+            {!isSubscribed ? (
+              <Typography
+                fixed
+                size={11}
+                color={COLORS.mute}
+                textAlign="center"
+                mT={8}>
+                Accepts Credit/Debit Cards, Apple Pay & Cash App
+              </Typography>
+            ) : null}
 
             <Pressable
               style={styles.restore}
@@ -686,37 +916,8 @@ const SubscriptionScreen = ({navigation}) => {
               </Typography>
             </Pressable>
           </View>
-        )}
-
-        {/* Global entitlements section for subscribed users */}
-        {isSubscribed ? (
-          <>
-            <Typography
-              fixed
-              size={16}
-              fFamily="spaceGroteskBold700"
-              color={COLORS.foreground}
-              mT={32}
-              mB={16}>
-              Included in your plan
-            </Typography>
-
-            <View style={styles.perks}>
-              {perks.map((p, idx) => (
-                <View key={`${p}-${idx}`} style={styles.perk}>
-                  <Icon.Check size={16} color={COLORS.primary} strokeWidth={2.5} />
-                  <Typography
-                    fixed
-                    size={14}
-                    color={COLORS.foreground}
-                    style={styles.perkText}>
-                    {p}
-                  </Typography>
-                </View>
-              ))}
-            </View>
-          </>
         ) : null}
+
       </ScrollView>
 
       <ScreenOverlayLoader visible={overlayBusy} />
