@@ -14,11 +14,13 @@ import { unregisterCurrentPushToken } from '../../api/pushService';
 import { disconnectEcho } from '../../helpers/echoClient';
 import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
 import { subscriptionSettingsHint } from '../../helpers/subscriptionHelpers';
+import { useSubscriptionEnabled } from '../../hooks/useSubscriptionEnabled';
 
 const SettingsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [loggingOut, setLoggingOut] = useState(false);
   const { subscription } = useSubscriptionMe();
+  const { subscriptionEnabled } = useSubscriptionEnabled();
 
   const sections = useMemo(
     () => [
@@ -29,16 +31,21 @@ const SettingsScreen = ({ navigation }) => {
           { label: 'Education', to: 'EducationsScreen' },
         ],
       },
-      {
-        label: 'Membership',
-        items: [
+      // Hidden entirely when GET /config → subscription_enabled is false.
+      ...(subscriptionEnabled
+        ? [
           {
-            label: 'Subscription & Billing',
-            hint: subscriptionSettingsHint(subscription),
-            to: 'SubscriptionScreen',
+            label: 'Membership',
+            items: [
+              {
+                label: 'Subscription & Billing',
+                hint: subscriptionSettingsHint(subscription),
+                to: 'SubscriptionScreen',
+              },
+            ],
           },
-        ],
-      },
+        ]
+        : []),
       {
         label: '',
         items: [
@@ -46,7 +53,7 @@ const SettingsScreen = ({ navigation }) => {
         ],
       },
     ],
-    [subscription],
+    [subscription, subscriptionEnabled],
   );
 
   const performLogout = async () => {

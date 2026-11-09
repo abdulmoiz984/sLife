@@ -14,6 +14,10 @@ import {
 } from '../utils/notificationHelper';
 import { connectEcho, disconnectEcho } from '../helpers/echoClient';
 import { bindSubscriptionForegroundRefresh } from '../helpers/subscriptionHelpers';
+import {
+  bindAppConfigForegroundRefresh,
+  refreshAppConfig,
+} from '../helpers/appConfig';
 import { useSubscriptionMe } from '../hooks/useSubscriptionMe';
 import { queryClient } from '../api/api';
 import { CHATS_QUERY_KEY } from '../helpers/chatHelpers';
@@ -21,6 +25,12 @@ import { CHATS_QUERY_KEY } from '../helpers/chatHelpers';
 const RootStack = () => {
   const isLogged = useSelector(s => s.app.isLogged);
   const { isSubscribed } = useSubscriptionMe();
+
+  // GET /config on cold launch + every return to foreground.
+  useEffect(() => {
+    refreshAppConfig();
+    return bindAppConfigForegroundRefresh();
+  }, []);
 
   useEffect(() => {
     requestNotificationPermission();

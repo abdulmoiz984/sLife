@@ -14,6 +14,11 @@ import { COLORS, RADIUS } from '../../globalStyle/Theme';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { getProfileOptions } from '../../api/profileService';
 import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
+import { useSubscriptionEnabled } from '../../hooks/useSubscriptionEnabled';
+import {
+  SUBSCRIPTION_UNAVAILABLE_MESSAGE,
+  showSubscriptionUnavailable,
+} from '../../helpers/appConfig';
 
 const FilterSection = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -43,6 +48,7 @@ const FiltersScreen = ({ navigation, route }) => {
   const {
     isSubscribed,
   } = useSubscriptionMe();
+  const { subscriptionEnabled } = useSubscriptionEnabled();
   const initial = route?.params?.filters || {};
   const [industry, setIndustry] = useState(initial.industry || '');
   const [role, setRole] = useState(initial.professional_role || '');
@@ -121,8 +127,9 @@ const FiltersScreen = ({ navigation, route }) => {
               </Typography>
             </View>
             <Typography fixed size={13} color={COLORS.body} mT={8} LineHeight={19}>
-              Explore the available filters below. Subscribe when you are ready
-              to apply them to Discover.
+              {subscriptionEnabled
+                ? 'Explore the available filters below. Subscribe when you are ready to apply them to Discover.'
+                : `Advanced filters are not available right now. ${SUBSCRIPTION_UNAVAILABLE_MESSAGE}`}
             </Typography>
           </View>
         )}
@@ -214,7 +221,9 @@ const FiltersScreen = ({ navigation, route }) => {
           <Button
             label={
               !isSubscribed
-                ? 'Unlock filters'
+                ? subscriptionEnabled
+                  ? 'Unlock filters'
+                  : 'Filters unavailable'
                 : activeCount
                   ? `Apply ${activeCount} filter${activeCount > 1 ? 's' : ''}`
                   : 'Show results'
@@ -222,7 +231,9 @@ const FiltersScreen = ({ navigation, route }) => {
             onPress={
               isSubscribed
                 ? apply
-                : () => navigation.navigate('SubscriptionScreen')
+                : subscriptionEnabled
+                  ? () => navigation.navigate('SubscriptionScreen')
+                  : showSubscriptionUnavailable
             }
           />
         </View>

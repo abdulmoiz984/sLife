@@ -1,13 +1,18 @@
 import React from 'react';
-import {StyleSheet, View} from 'react-native';
-import {Typography} from '../../atomComponents';
+import { StyleSheet, View } from 'react-native';
+import { Typography } from '../../atomComponents';
 import Button from '../customButtons/Button';
-import {Icon, ShimmerBlock} from '../slife';
-import {COLORS, RADIUS} from '../../globalStyle/Theme';
+import { Icon, ShimmerBlock } from '../slife';
+import { COLORS, RADIUS } from '../../globalStyle/Theme';
+import { useSubscriptionEnabled } from '../../hooks/useSubscriptionEnabled';
+import { SUBSCRIPTION_UNAVAILABLE_MESSAGE } from '../../helpers/appConfig';
 
 /**
  * In-context premium preview. It never receives or renders protected data;
  * shimmer blocks only demonstrate the shape of the feature being unlocked.
+ *
+ * When GET /config → subscription_enabled is false, all purchase copy and the
+ * unlock CTA are hidden (App Store review builds).
  */
 const PremiumGate = ({
   title,
@@ -16,65 +21,75 @@ const PremiumGate = ({
   cta = 'Unlock with Premium',
   onUnlock,
   compact = false,
-}) => (
-  <View style={[styles.wrap, compact && styles.compactWrap]}>
-    <View style={styles.preview} pointerEvents="none">
-      <ShimmerBlock height={compact ? 48 : 72} />
-      <ShimmerBlock
-        height={11}
-        width="72%"
-        style={styles.previewLine}
-      />
-      <ShimmerBlock height={11} width="48%" />
-      <View style={styles.previewVeil}>
-        <View style={styles.lock}>
-          <Icon.Lock size={22} color={COLORS.primary} />
+}) => {
+  const { subscriptionEnabled } = useSubscriptionEnabled();
+
+  return (
+    <View style={[styles.wrap, compact && styles.compactWrap]}>
+      <View style={styles.preview} pointerEvents="none">
+        <ShimmerBlock height={compact ? 48 : 72} />
+        <ShimmerBlock
+          height={11}
+          width="72%"
+          style={styles.previewLine}
+        />
+        <ShimmerBlock height={11} width="48%" />
+        <View style={styles.previewVeil}>
+          <View style={styles.lock}>
+            <Icon.Lock size={22} color={COLORS.primary} />
+          </View>
         </View>
       </View>
-    </View>
 
-    <View style={styles.badge}>
-      <Icon.Lock size={12} color={COLORS.primary} />
+      <View style={styles.badge}>
+        <Icon.Lock size={12} color={COLORS.primary} />
+        <Typography
+          fixed
+          size={10}
+          fFamily="interSemiBold600"
+          color={COLORS.primary}
+          textTransform="uppercase"
+          style={styles.badgeText}>
+          {subscriptionEnabled ? eyebrow : 'Not available'}
+        </Typography>
+      </View>
+
       <Typography
         fixed
-        size={10}
-        fFamily="interSemiBold600"
-        color={COLORS.primary}
-        textTransform="uppercase"
-        style={styles.badgeText}>
-        {eyebrow}
+        size={compact ? 22 : 26}
+        fFamily="spaceGroteskBold700"
+        color={COLORS.foreground}
+        textAlign="center"
+        mT={14}
+        LineHeight={compact ? 28 : 32}>
+        {subscriptionEnabled ? title : 'This feature is unavailable'}
       </Typography>
-    </View>
+      <Typography
+        fixed
+        size={14}
+        color={COLORS.body}
+        textAlign="center"
+        mT={10}
+        LineHeight={21}
+        style={styles.description}>
+        {subscriptionEnabled
+          ? description
+          : `${SUBSCRIPTION_UNAVAILABLE_MESSAGE} Please check back later.`}
+      </Typography>
 
-    <Typography
-      fixed
-      size={compact ? 22 : 26}
-      fFamily="spaceGroteskBold700"
-      color={COLORS.foreground}
-      textAlign="center"
-      mT={14}
-      LineHeight={compact ? 28 : 32}>
-      {title}
-    </Typography>
-    <Typography
-      fixed
-      size={14}
-      color={COLORS.body}
-      textAlign="center"
-      mT={10}
-      LineHeight={21}
-      style={styles.description}>
-      {description}
-    </Typography>
-
-    <View style={styles.cta}>
-      <Button label={cta} onPress={onUnlock} />
+      {subscriptionEnabled ? (
+        <>
+          <View style={styles.cta}>
+            <Button label={cta} onPress={onUnlock} />
+          </View>
+          <Typography fixed size={11} color={COLORS.mute} textAlign="center" mT={10}>
+            Trial and grace-period access are included.
+          </Typography>
+        </>
+      ) : null}
     </View>
-    <Typography fixed size={11} color={COLORS.mute} textAlign="center" mT={10}>
-      Trial and grace-period access are included.
-    </Typography>
-  </View>
-);
+  );
+};
 
 export default PremiumGate;
 

@@ -45,6 +45,7 @@ import {
   isSubscriptionRequiredError,
 } from '../../helpers/subscriptionHelpers';
 import PremiumGate from '../../components/subscription/PremiumGate';
+import { useSubscriptionEnabled } from '../../hooks/useSubscriptionEnabled';
 
 const MAX_BODY = 2000;
 
@@ -54,6 +55,7 @@ const ChatScreen = ({ navigation, route }) => {
     isSubscribed,
     isLoading: subscriptionLoading,
   } = useSubscriptionMe();
+  const { subscriptionEnabled } = useSubscriptionEnabled();
   const paramConversationId = route.params?.conversationId ?? null;
   const paramUserId =
     route.params?.userId ??
@@ -366,7 +368,7 @@ const ChatScreen = ({ navigation, route }) => {
     // Avoids 404 "No query results for model [ChatMessage]" after chat switches.
     markChatRead(conversationId)
       .then(() => invalidateChatQueries(conversationId))
-      .catch(() => {});
+      .catch(() => { });
   }, [isSubscribed, conversationId, items]);
 
   const deliver = async (body, clientMessageId, { replaceFailed = false } = {}) => {
@@ -475,10 +477,10 @@ const ChatScreen = ({ navigation, route }) => {
               setConversation(prev =>
                 prev
                   ? {
-                      ...prev,
-                      isBlocked: !blocked,
-                      canSend: blocked,
-                    }
+                    ...prev,
+                    isBlocked: !blocked,
+                    canSend: blocked,
+                  }
                   : prev,
               );
               await invalidateChatQueries(conversationId);
@@ -505,10 +507,10 @@ const ChatScreen = ({ navigation, route }) => {
       other?.id ? { text: 'View profile', onPress: openProfile } : null,
       other?.id
         ? {
-            text: thread?.isBlocked ? 'Unblock' : 'Block',
-            style: thread?.isBlocked ? 'default' : 'destructive',
-            onPress: confirmBlockToggle,
-          }
+          text: thread?.isBlocked ? 'Unblock' : 'Block',
+          style: thread?.isBlocked ? 'default' : 'destructive',
+          onPress: confirmBlockToggle,
+        }
         : null,
       { text: 'Cancel', style: 'cancel' },
     ].filter(Boolean));
@@ -604,7 +606,9 @@ const ChatScreen = ({ navigation, route }) => {
         <View style={styles.lockedComposer}>
           <Icon.Lock size={16} color={COLORS.mute} />
           <Typography fixed size={13} color={COLORS.mute}>
-            Subscribe to write a message
+            {subscriptionEnabled
+              ? 'Subscribe to write a message'
+              : 'Messaging is unavailable right now'}
           </Typography>
         </View>
       </SafeAreaWrapper>

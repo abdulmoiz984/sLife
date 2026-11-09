@@ -1,4 +1,4 @@
-import React, { Component, useMemo, useRef, useState } from 'react';
+import React, { Component, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,8 @@ import { queryClient } from '../../api/api';
 import { useCustomQuery } from '../../query/useCustomQuery';
 import { useCustomMutation } from '../../query/useCustomMutation';
 import { useSubscriptionMe } from '../../hooks/useSubscriptionMe';
+import { useSubscriptionEnabled } from '../../hooks/useSubscriptionEnabled';
+import { refreshAppConfig } from '../../helpers/appConfig';
 import {
   activateTrial,
   cancelSubscription,
@@ -390,7 +392,7 @@ const SubscriptionContent = ({ navigation }) => {
         if (confirmError) {
           throw new Error(
             confirmError.message ||
-              'Additional payment confirmation could not be completed.',
+            'Additional payment confirmation could not be completed.',
           );
         }
       } else if (response?.subscription) {
@@ -719,7 +721,7 @@ const SubscriptionContent = ({ navigation }) => {
                                   style={[
                                     styles.changeBadgeText,
                                     changeType === 'downgrade' &&
-                                      styles.downgradeBadgeText,
+                                    styles.downgradeBadgeText,
                                   ]}>
                                   {changeType === 'upgrade'
                                     ? '↑ Upgrade'
@@ -944,7 +946,7 @@ const SubscriptionContent = ({ navigation }) => {
               style={[
                 styles.primaryButton,
                 (!selectedPackage?.id || !selectedPackage.isCheckoutReady || busy) &&
-                  styles.disabledButton,
+                styles.disabledButton,
               ]}>
               {busy ? (
                 <ActivityIndicator color={COLORS.white100} />
@@ -968,11 +970,38 @@ const SubscriptionContent = ({ navigation }) => {
   );
 };
 
-const SubscriptionScreenFixed = props => (
-  <SubscriptionErrorBoundary navigation={props.navigation}>
-    <SubscriptionContent {...props} />
-  </SubscriptionErrorBoundary>
+const SubscriptionUnavailable = ({ navigation }) => (
+  <SafeAreaView style={styles.safe}>
+    <View style={styles.errorPage}>
+      <Text style={styles.title}>Membership unavailable</Text>
+      <Text style={styles.copy}>
+        Membership is temporarily unavailable. Please check back later.
+      </Text>
+      <Pressable style={styles.primaryButton} onPress={() => navigation.goBack()}>
+        <Text style={styles.primaryButtonText}>Go back</Text>
+      </Pressable>
+    </View>
+  </SafeAreaView>
 );
+
+const SubscriptionScreenFixed = props => {
+  const { subscriptionEnabled } = useSubscriptionEnabled();
+
+  // Re-check GET /config every time the screen opens.
+  useEffect(() => {
+    refreshAppConfig();
+  }, []);
+
+  if (!subscriptionEnabled) {
+    return <SubscriptionUnavailable navigation={props.navigation} />;
+  }
+
+  return (
+    <SubscriptionErrorBoundary navigation={props.navigation}>
+      <SubscriptionContent {...props} />
+    </SubscriptionErrorBoundary>
+  );
+};
 
 export default SubscriptionScreenFixed;
 

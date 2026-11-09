@@ -1,5 +1,5 @@
 // ✅ Base URLs — from mobile-api-integration.md
-export const BASE_URL = __DEV__
+export const BASE_URL = !__DEV__
   ? 'https://pro-fixer.demoappprojects.com/slife/'
   : 'https://app.theslife.com/public/';
 
@@ -11,6 +11,8 @@ export const API_DOMAIN = `${BASE_URL}api/`;
 export const API_ORIGIN = BASE_URL.replace(/\/+$/, '');
 
 export const ENDPOINTS = {
+  // --- App config (public) ---
+  CONFIG: 'config',
   // --- Auth (Module A) ---
   REGISTER: 'register',
   LOGIN: 'login',

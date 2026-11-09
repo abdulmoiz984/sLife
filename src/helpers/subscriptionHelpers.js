@@ -3,6 +3,10 @@ import { queryClient, storage } from '../api/api';
 import { API_ORIGIN } from '../api/endpoints';
 import { getSubscriptionMe } from '../api/subscriptionService';
 import { navigate } from '../navigation/NavigationService';
+import {
+  isSubscriptionUiEnabled,
+  showSubscriptionUnavailable,
+} from './appConfig';
 
 export const SUBSCRIPTION_ME_KEY = ['subscription', 'me'];
 export const PACKAGES_KEY = ['packages'];
@@ -247,6 +251,11 @@ export async function waitForSubscriptionActive({
 }
 
 export function openSubscriptionScreen(navigation) {
+  // GET /config → subscription_enabled=false: never open the paywall.
+  if (!isSubscriptionUiEnabled()) {
+    showSubscriptionUnavailable();
+    return;
+  }
   if (navigation?.navigate) {
     const parent = navigation.getParent?.();
     if (parent?.navigate) {
