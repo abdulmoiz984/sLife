@@ -18,6 +18,7 @@ export const ENDPOINTS = {
   LOGIN: 'login',
   ME: 'me',
   LOGOUT: 'logout',
+  DELETE_ACCOUNT: 'account',
   PUSH_REGISTER: 'push/register',
   PUSH_UNREGISTER: 'push/unregister',
   PUSH_TEST: 'push/test',

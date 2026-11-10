@@ -31,6 +31,16 @@ export const logout = async () => {
   return response.data;
 };
 
+/**
+ * DELETE /account — soft-deletes the user, revokes all Sanctum + push tokens,
+ * cancels any active subscription. Re-registering with the same email later
+ * restores the account (handled transparently by POST /register).
+ */
+export const deleteAccount = async () => {
+  const response = await api.delete(ENDPOINTS.DELETE_ACCOUNT);
+  return response.data;
+};
+
 /** Request a 6-digit password-reset OTP by email. */
 export const forgotPassword = async body => {
   const response = await api.post(ENDPOINTS.FORGOT_PASSWORD, {

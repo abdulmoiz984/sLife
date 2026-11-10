@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
 import { useDispatch } from 'react-redux';
 //------------------
 import { SafeAreaWrapper, Typography } from '../../atomComponents';
 import { ScreenOverlayLoader } from '../../components';
 import { Icon, TopBar } from '../../components/slife';
 import { COLORS } from '../../globalStyle/Theme';
-import { logout } from '../../api/authService';
+import { logout, deleteAccount } from '../../api/authService';
 import { handleLogout } from '../../redux/slices/appSlice';
 import { queryClient } from '../../api/api';
 import { showMessage } from '../../utils';
@@ -19,6 +19,8 @@ import { useSubscriptionEnabled } from '../../hooks/useSubscriptionEnabled';
 const SettingsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const busy = loggingOut || deleting;
   const { subscription } = useSubscriptionMe();
   const { subscriptionEnabled } = useSubscriptionEnabled();
 
@@ -50,6 +52,7 @@ const SettingsScreen = ({ navigation }) => {
         label: '',
         items: [
           { label: 'Log Out', danger: true, action: 'logout' },
+          { label: 'Delete Account', danger: true, action: 'delete' },
         ],
       },
     ],
@@ -69,18 +72,63 @@ const SettingsScreen = ({ navigation }) => {
     } catch (err) {
       console.log('🚀 ~ logout err:', err?.response?.data || err);
     } finally {
-      queryClient.clear();
-      disconnectEcho();
-      dispatch(handleLogout());
-      showMessage({ type: 'success', message: 'Logged out successfully.' });
-      navigation.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
+      clearSessionAndExit('Logged out successfully.');
       setLoggingOut(false);
     }
+  };
+
+  /** Clear local auth token / cached user / realtime, then go to login. */
+  const clearSessionAndExit = message => {
+    queryClient.clear();
+    disconnectEcho();
+    dispatch(handleLogout());
+    showMessage({ type: 'success', message });
+    navigation.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
+  };
+
+  // DELETE /account — backend revokes Sanctum + push tokens and cancels any
+  // active subscription, so no separate logout / push-unregister call needed.
+  const performDeleteAccount = async () => {
+    if (busy) return;
+    setDeleting(true);
+    try {
+      const res = await deleteAccount();
+      setDeleting(false);
+      clearSessionAndExit(res?.message || 'Account deleted successfully.');
+    } catch (err) {
+      console.log('🚀 ~ delete account err:', err?.response?.data || err);
+      setDeleting(false);
+      // 401 is handled globally in api.js (token invalid → login).
+      if (err?.response?.status !== 401) {
+        showMessage({
+          type: 'danger',
+          message:
+            err?.response?.data?.message ||
+            'Could not delete your account. Please try again.',
+        });
+      }
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account?',
+      'This will delete your S-Life account, sign you out on all devices and cancel any active subscription.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDeleteAccount },
+      ],
+      { cancelable: true },
+    );
   };
 
   const onItem = item => {
     if (item.action === 'logout') {
       performLogout();
+      return;
+    }
+    if (item.action === 'delete') {
+      confirmDeleteAccount();
       return;
     }
     if (!item.to) return;
@@ -115,7 +163,7 @@ const SettingsScreen = ({ navigation }) => {
                 <Pressable
                   key={it.label}
                   onPress={() => onItem(it)}
-                  disabled={it.action === 'logout' && loggingOut}
+                  disabled={!!it.action && busy}
                   style={styles.row}>
                   <Typography
                     fixed
@@ -124,7 +172,9 @@ const SettingsScreen = ({ navigation }) => {
                     color={it.danger ? COLORS.destructive : COLORS.foreground}>
                     {it.action === 'logout' && loggingOut
                       ? 'Logging out…'
-                      : it.label}
+                      : it.action === 'delete' && deleting
+                        ? 'Deleting account…'
+                        : it.label}
                   </Typography>
                   <View style={styles.right}>
                     {!!it.hint && (
@@ -154,7 +204,7 @@ const SettingsScreen = ({ navigation }) => {
           S-Life · Version 1.0
         </Typography>
       </ScrollView>
-      <ScreenOverlayLoader visible={loggingOut} />
+      <ScreenOverlayLoader visible={busy} />
     </SafeAreaWrapper>
   );
 };
