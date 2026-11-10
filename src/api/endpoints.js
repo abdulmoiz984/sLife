@@ -1,5 +1,5 @@
 // ✅ Base URLs — from mobile-api-integration.md
-export const BASE_URL = !__DEV__
+export const BASE_URL = __DEV__
   ? 'https://pro-fixer.demoappprojects.com/slife/'
   : 'https://app.theslife.com/public/';
 
